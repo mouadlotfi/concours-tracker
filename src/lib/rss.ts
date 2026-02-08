@@ -21,7 +21,7 @@ export function buildRss(items: MatchedConcours[]): string {
 
   const channelTitle = 'Concours Développement Web';
   const channelLink = config.appBaseUrl;
-  const channelDesc = 'Concours publics lies au developpement web/logiciel (wadifa-info.com)';
+  const channelDesc = 'Concours publics lies au developpement web';
 
   const renderedItems = items
     .map((it) => {
@@ -32,8 +32,8 @@ export function buildRss(items: MatchedConcours[]): string {
       const pub = it.depositDeadlineIso ? isoToRfc822(it.depositDeadlineIso) : now;
 
       const lines: string[] = [];
-      if (it.depositDeadlineIso) lines.push(`<p><strong>Date limite</strong>: ${escapeXml(it.depositDeadlineIso)}</p>`);
-      if (it.concoursDateIso) lines.push(`<p><strong>Date du concours</strong>: ${escapeXml(it.concoursDateIso)}</p>`);
+      if (it.depositDeadlineIso) lines.push(`<p><strong>Date limite</strong>: ${escapeXml(it.depositDeadlineIso.slice(0, 10))}</p>`);
+      if (it.concoursDateIso) lines.push(`<p><strong>Date du concours</strong>: ${escapeXml(it.concoursDateIso.slice(0, 10))}</p>`);
       lines.push(
         `<p><strong>Wadifa</strong>: <a href="${escapeXml(it.wadifaUrl)}">${escapeXml(it.wadifaUrl)}</a></p>`
       );
@@ -43,7 +43,7 @@ export function buildRss(items: MatchedConcours[]): string {
         );
       }
       if (it.matchReason) {
-        lines.push(`<p><small>raison: ${escapeXml(it.matchReason)}</small></p>`);
+        lines.push(`<p><small>${escapeXml(it.matchReason)}</small></p>`);
       }
       const detailEntries = Object.entries(it.details || {}).filter(([k, v]) => k && v);
       if (detailEntries.length) {
