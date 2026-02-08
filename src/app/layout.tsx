@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Concours Developpement Web',
-  description: 'Concours web/logiciel depuis wadifa-info.com (RSS + email)',
+  description: 'Concours Développement Web',
 };
 
 export default function RootLayout({

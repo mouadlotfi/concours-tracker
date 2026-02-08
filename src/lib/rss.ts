@@ -42,9 +42,7 @@ export function buildRss(items: MatchedConcours[]): string {
           `<p><strong>Lien du concours</strong>: <a href="${escapeXml(it.sourceUrl)}">${escapeXml(it.sourceUrl)}</a></p>`
         );
       }
-      if (it.matchReason) {
-        lines.push(`<p><small>${escapeXml(it.matchReason)}</small></p>`);
-      }
+
       const detailEntries = Object.entries(it.details || {}).filter(([k, v]) => k && v);
       if (detailEntries.length) {
         const rows = detailEntries
@@ -56,8 +54,6 @@ export function buildRss(items: MatchedConcours[]): string {
         );
       }
       const descHtml = lines.join('');
-      const cat = it.matchReason ? `<category>${escapeXml(it.matchReason)}</category>` : '';
-
       return `
       <item>
         <title>${title}</title>
@@ -65,7 +61,6 @@ export function buildRss(items: MatchedConcours[]): string {
         <guid isPermaLink="false">${guid}</guid>
         <pubDate>${escapeXml(pub)}</pubDate>
         <description>${cdata(descHtml)}</description>
-        ${cat}
       </item>`;
     })
     .join('');

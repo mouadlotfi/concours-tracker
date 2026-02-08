@@ -177,7 +177,7 @@ function buildWelcomeHtml(unsubUrl: string, rssUrl: string): string {
               </table>
 
               <h2 style="margin:0 0 12px;font-family:${mono};font-size:16px;font-weight:400;color:${text};letter-spacing:0.2px;">Abonnement confirm&eacute;</h2>
-              <p style="margin:0 0 22px;font-family:${mono};font-size:12px;line-height:1.7;color:${textDim};font-weight:300;">Vous recevrez un email &agrave; chaque nouveau concours d&eacute;tect&eacute; comme relevant du d&eacute;veloppement web/logiciel.</p>
+              <p style="margin:0 0 22px;font-family:${mono};font-size:12px;line-height:1.7;color:${textDim};font-weight:300;">Vous recevrez un email &agrave; chaque nouveau concours d&eacute;tect&eacute; comme relevant du d&eacute;veloppement web.</p>
 
               <!-- RSS box -->
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -207,7 +207,7 @@ function buildWelcomeText(unsubUrl: string, rssUrl: string): string {
   return [
     'Abonnement confirmé — Concours Développement Web',
     '',
-    'Vous recevrez un email à chaque nouveau concours détecté comme relevant du développement web/logiciel.',
+    'Vous recevrez un email à chaque nouveau concours détecté comme relevant du développement web.',
     '',
     `Flux RSS: ${rssUrl}`,
     '',
