@@ -129,6 +129,10 @@ export default async function HomePage() {
         </a>
         <span className={styles.sep} />
         <a href="/feed.xml">RSS</a>
+        <span className={styles.sep} />
+        <a href="https://github.com/mouadlotfi/concours-tracker" target="_blank" rel="noreferrer noopener">
+          Github
+        </a>
       </div>
     </main>
   );

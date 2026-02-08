@@ -105,3 +105,10 @@ body::after {
 ::selection {
   background: rgba(79, 70, 229, 0.18);
 }
+
+/* Desktop zoom */
+@media (min-width: 768px) {
+  body {
+    zoom: 1.1;
+  }
+}
