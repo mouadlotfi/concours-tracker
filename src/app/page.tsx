@@ -31,9 +31,6 @@ export default async function HomePage() {
         <h1 className={styles.title}>
           Concours Développement Web
         </h1>
-        <p className={styles.subtitle}>
-          Concours ouverts
-        </p>
       </header>
 
       <section className={styles.section}>
