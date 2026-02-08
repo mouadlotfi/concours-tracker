@@ -1,7 +1,41 @@
-import { kv } from '@vercel/kv';
 import { isOpenDeadline, type MatchedConcours } from './wadifa';
 
 const KV_KEY = 'concours:history';
+
+/* ------------------------------------------------------------------ */
+/*  KV adapter: use Vercel KV when available, else fall back to a     */
+/*  process-scoped in-memory Map (good enough for local dev).         */
+/* ------------------------------------------------------------------ */
+
+const hasKV = Boolean(
+  process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN,
+);
+
+// Lazy-load @vercel/kv only when env vars are present so the import
+// doesn't throw in dev environments.
+async function kvGet<T>(key: string): Promise<T | null> {
+  if (!hasKV) return memStore.get(key) as T ?? null;
+  const { kv } = await import('@vercel/kv');
+  return kv.get<T>(key);
+}
+
+async function kvSet<T>(key: string, value: T): Promise<void> {
+  if (!hasKV) {
+    memStore.set(key, value);
+    return;
+  }
+  const { kv } = await import('@vercel/kv');
+  await kv.set(key, value);
+}
+
+// In-memory fallback store (only used when KV env vars are missing)
+const memStore = new Map<string, unknown>();
+
+if (!hasKV) {
+  console.warn(
+    '[concours-store] KV_REST_API_URL / KV_REST_API_TOKEN not set — using in-memory store (no persistence across restarts)',
+  );
+}
 
 /**
  * Merge freshly-scraped concours into the persistent store,
@@ -48,7 +82,7 @@ export async function mergeAndPrune(
  * Load all stored concours from KV (returns [] if key missing).
  */
 export async function loadAll(): Promise<MatchedConcours[]> {
-  const data = await kv.get<MatchedConcours[]>(KV_KEY);
+  const data = await kvGet<MatchedConcours[]>(KV_KEY);
   return data ?? [];
 }
 
@@ -56,5 +90,5 @@ export async function loadAll(): Promise<MatchedConcours[]> {
  * Persist the full concours list to KV.
  */
 async function saveAll(items: MatchedConcours[]): Promise<void> {
-  await kv.set(KV_KEY, items);
+  await kvSet(KV_KEY, items);
 }
