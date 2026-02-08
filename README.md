@@ -1,47 +1,47 @@
 # Concours Dev Web RSS
 
-A Next.js application that aggregates public-sector competitive examination ("concours") postings related to web development and IT from [wadifa-info.com](https://www.wadifa-info.com). It filters listings by configurable keywords, serves results as an RSS feed, displays them on a web dashboard, and optionally notifies email subscribers when new concours are found.
+Une application Next.js qui agrège les annonces de concours du secteur public liées au développement web et à l'informatique depuis [wadifa-info.com](https://www.wadifa-info.com). Elle filtre les annonces par mots-clés configurables, sert les résultats sous forme de flux RSS, les affiche sur un tableau de bord web, et notifie optionnellement les abonnés par email lorsque de nouveaux concours sont trouvés.
 
-## Features
+## Fonctionnalités
 
-- **Web scraping** -- Paginates through wadifa-info.com listing pages and scrapes detail pages using Cheerio
-- **Keyword filtering** -- Matches concours by configurable include/exclude keywords (no AI, pure text matching)
-- **RSS feed** -- Serves a valid RSS 2.0 feed at `/feed.xml` with edge caching
-- **Web dashboard** -- Displays matched concours with expandable details, deadlines, and source links
-- **Email subscriptions** -- Subscribers receive digest emails when new matching concours are found (via Brevo)
-- **Persistent history** -- Scraped results are stored in Vercel KV (Redis) and survive across deployments
-- **Cron-triggered refresh** -- External schedulers can trigger scraping and email notifications via a secured API endpoint
-- **Secure unsubscribe** -- HMAC-SHA256 signed one-click unsubscribe links in every email
+- **Web scraping** -- Pagination des pages de liste de wadifa-info.com et scraping des pages de détail avec Cheerio
+- **Filtrage par mots-clés** -- Correspond aux concours selon des mots-clés d'inclusion/exclusion configurables (pas d'IA, correspondance de texte pure)
+- **Flux RSS** -- Sert un flux RSS 2.0 valide à `/feed.xml` avec mise en cache edge
+- **Tableau de bord web** -- Affiche les concours correspondants avec détails dépliables, échéances et liens sources
+- **Abonnements email** -- Les abonnés reçoivent des emails récapitulatifs lorsque de nouveaux concours correspondants sont trouvés (via Brevo)
+- **Historique persistant** -- Les résultats scrapés sont stockés dans Vercel KV (Redis) et survivent aux déploiements
+- **Rafraîchissement déclenché par cron** -- Les planificateurs externes peuvent déclencher le scraping et les notifications email via un endpoint API sécurisé
+- **Désabonnement sécurisé** -- Liens de désabonnement en un clic signés HMAC-SHA256 dans chaque email
 
-## Tech Stack
+## Stack Technique
 
-| Layer | Technology |
+| Couche | Technologie |
 |---|---|
 | Framework | [Next.js](https://nextjs.org) 16 (App Router) |
-| Language | TypeScript 5.9 |
+| Langage | TypeScript 5.9 |
 | UI | React 19, CSS Modules |
 | Scraping | [Cheerio](https://cheerio.js.org) |
 | Validation | [Zod](https://zod.dev) 4 |
-| Email | [Brevo](https://www.brevo.com) (transactional SMTP API) |
-| Storage | [@vercel/kv](https://vercel.com/docs/storage/vercel-kv) (Redis) |
-| Fonts | [Geist](https://vercel.com/font) (self-hosted woff2) |
+| Email | [Brevo](https://www.brevo.com) (API SMTP transactionnelle) |
+| Stockage | [@vercel/kv](https://vercel.com/docs/storage/vercel-kv) (Redis) |
+| Polices | [Geist](https://vercel.com/font) (woff2 auto-hébergé) |
 
-## Getting Started
+## Démarrage
 
-### Prerequisites
+### Prérequis
 
-- [Bun](https://bun.sh) (package manager)
+- [Bun](https://bun.sh) (gestionnaire de paquets)
 - Node.js 22+
 
-### Local Development
+### Développement Local
 
 ```sh
-cp .env.example .env    # configure your environment variables
+cp .env.example .env    # configurez vos variables d'environnement
 bun install
-bun run dev             # starts dev server on http://localhost:3000
+bun run dev             # démarre le serveur de dev sur http://localhost:3000
 ```
 
-### Production Build
+### Build de Production
 
 ```sh
 bun run build
@@ -51,132 +51,132 @@ bun run start
 ### Docker
 
 ```sh
-cp .env.example .env    # configure your environment variables
+cp .env.example .env    # configurez vos variables d'environnement
 docker compose up --build
 ```
 
-The app will be available at `http://localhost:3000`.
+L'application sera disponible sur `http://localhost:3000`.
 
-## Deployment
+## Déploiement
 
-### Vercel (Recommended)
+### Vercel (Recommandé)
 
-1. Import the repository into [Vercel](https://vercel.com)
-2. Add a [Vercel KV](https://vercel.com/docs/storage/vercel-kv) store to your project
-3. Configure environment variables in the Vercel dashboard (see [Configuration](#configuration))
-4. Deploy -- the app runs statelessly with edge-cached RSS
+1. Importez le dépôt dans [Vercel](https://vercel.com)
+2. Ajoutez un store [Vercel KV](https://vercel.com/docs/storage/vercel-kv) à votre projet
+3. Configurez les variables d'environnement dans le tableau de bord Vercel (voir [Configuration](#configuration))
+4. Déployez -- l'application fonctionne sans état avec RSS mis en cache edge
 
-### Docker / Self-Hosted
+### Docker / Auto-hébergé
 
-Use the included `Dockerfile` and `docker-compose.yml`. All configuration is passed via `.env`.
+Utilisez les fichiers `Dockerfile` et `docker-compose.yml` inclus. Toute la configuration passe par `.env`.
 
-> **Note:** When self-hosting, you need an external Redis instance for Vercel KV, or you can run without persistent history (the app will still work using in-memory cache).
+> **Note :** En auto-hébergement, vous avez besoin d'une instance Redis externe pour Vercel KV, ou vous pouvez fonctionner sans historique persistant (l'application fonctionnera toujours avec le cache en mémoire).
 
 ## Configuration
 
-All configuration is via environment variables. See `.env.example` for a template.
+Toute la configuration se fait via des variables d'environnement. Voir `.env.example` pour un modèle.
 
-### Required
+### Requises
 
 | Variable | Description |
 |---|---|
-| `APP_BASE_URL` | Public URL of your deployment (e.g. `https://concours.mouadlotfi.com`) |
+| `APP_BASE_URL` | URL publique de votre déploiement (ex. `https://concours.mouadlotfi.com`) |
 
 ### Email (Brevo)
 
 | Variable | Description |
 |---|---|
-| `BREVO_API_KEY` | Brevo API key for transactional emails and contact management |
-| `BREVO_LIST_ID` | Brevo contact list ID for subscribers |
-| `BREVO_SENDER_EMAIL` | Sender email address for notifications |
-| `BREVO_SENDER_NAME` | Sender display name (default: `Concours Developpement Web`) |
+| `BREVO_API_KEY` | Clé API Brevo pour les emails transactionnels et la gestion des contacts |
+| `BREVO_LIST_ID` | ID de la liste de contacts Brevo pour les abonnés |
+| `BREVO_SENDER_EMAIL` | Adresse email de l'expéditeur pour les notifications |
+| `BREVO_SENDER_NAME` | Nom d'affichage de l'expéditeur (par défaut : `Concours Developpement Web`) |
 
-### Security
+### Sécurité
 
 | Variable | Description |
 |---|---|
-| `CRON_SECRET` | Secret token to authenticate cron refresh requests (recommended) |
-| `UNSUBSCRIBE_SECRET` | HMAC secret for signing unsubscribe tokens (falls back to `BREVO_API_KEY`) |
+| `CRON_SECRET` | Jeton secret pour authentifier les requêtes de rafraîchissement cron (recommandé) |
+| `UNSUBSCRIBE_SECRET` | Secret HMAC pour signer les jetons de désabonnement (par défaut `BREVO_API_KEY`) |
 
-### Scraper (Optional)
+### Scraper (Optionnel)
 
-| Variable | Default | Description |
+| Variable | Défaut | Description |
 |---|---|---|
-| `KEYWORDS` | `developpement,informatique` | Comma-separated include keywords |
-| `EXCLUDE_KEYWORDS` | _(empty)_ | Comma-separated exclude keywords |
-| `MAX_PAGES` | `5` | Max listing pages to scrape |
-| `MAX_FEED_ITEMS` | `30` | Max items in the RSS feed |
-| `CACHE_SECONDS` | `3600` | In-memory cache TTL in seconds |
-| `BASE_URL` | `https://www.wadifa-info.com` | Scraper target base URL |
-| `LIST_PATH` | `/fr/concours-emplois-publics-maroc` | Listing page path |
-| `LIST_SORT_BY` | `4` | Sort parameter for listings |
-| `USER_AGENT` | Chrome 120 UA string | HTTP User-Agent for scraper requests |
+| `KEYWORDS` | `developpement,informatique` | Mots-clés d'inclusion séparés par des virgules |
+| `EXCLUDE_KEYWORDS` | _(vide)_ | Mots-clés d'exclusion séparés par des virgules |
+| `MAX_PAGES` | `5` | Nombre max de pages de liste à scraper |
+| `MAX_FEED_ITEMS` | `30` | Nombre max d'éléments dans le flux RSS |
+| `CACHE_SECONDS` | `3600` | TTL du cache en mémoire en secondes |
+| `BASE_URL` | `https://www.wadifa-info.com` | URL de base de la cible du scraper |
+| `LIST_PATH` | `/fr/concours-emplois-publics-maroc` | Chemin de la page de liste |
+| `LIST_SORT_BY` | `4` | Paramètre de tri pour les listes |
+| `USER_AGENT` | Chaîne UA Chrome 120 | User-Agent HTTP pour les requêtes du scraper |
 
-## API Endpoints
+## Endpoints API
 
-| Method | Path | Description |
+| Méthode | Chemin | Description |
 |---|---|---|
-| `GET` | `/` | Web dashboard with matched concours |
-| `GET` | `/feed.xml` | RSS 2.0 feed (edge-cached) |
-| `GET` | `/healthz` | Health check (`{ ok: true }`) |
-| `GET` | `/unsubscribe?token=...` | Unsubscribe confirmation page |
-| `POST` | `/api/subscribe` | Add email subscriber |
-| `POST` | `/api/unsubscribe` | Remove email subscriber (token-verified) |
-| `POST` | `/api/cron/refresh` | Trigger scrape + email notifications |
+| `GET` | `/` | Tableau de bord web avec les concours correspondants |
+| `GET` | `/feed.xml` | Flux RSS 2.0 (mis en cache edge) |
+| `GET` | `/healthz` | Vérification de santé (`{ ok: true }`) |
+| `GET` | `/unsubscribe?token=...` | Page de confirmation de désabonnement |
+| `POST` | `/api/subscribe` | Ajouter un abonné email |
+| `POST` | `/api/unsubscribe` | Retirer un abonné email (vérifié par jeton) |
+| `POST` | `/api/cron/refresh` | Déclencher scrape + notifications email |
 
-### Cron Refresh
+### Rafraîchissement Cron
 
-`POST /api/cron/refresh` scrapes for new matches and emails subscribers a digest.
+`POST /api/cron/refresh` scrape pour de nouvelles correspondances et envoie un récapitulatif aux abonnés.
 
-- If `CRON_SECRET` is set, include `x-cron-secret: <secret>` header
-- Add `?dryRun=1` to scrape without sending emails
-- Add `?force=1` to bypass the in-memory cache
+- Si `CRON_SECRET` est défini, inclure l'en-tête `x-cron-secret: <secret>`
+- Ajouter `?dryRun=1` pour scraper sans envoyer d'emails
+- Ajouter `?force=1` pour contourner le cache en mémoire
 
-Trigger this endpoint from an external scheduler like [cron-job.org](https://cron-job.org), GitHub Actions, or a system crontab.
+Déclenchez cet endpoint depuis un planificateur externe comme [cron-job.org](https://cron-job.org), GitHub Actions, ou un crontab système.
 
-## Project Structure
+## Structure du Projet
 
 ```
 src/
   app/
-    page.tsx                    # Home page (server component)
-    subscribe-card.tsx          # Email subscription form (client component)
-    layout.tsx                  # Root layout
-    globals.css                 # Theme, fonts, CSS variables
+    page.tsx                    # Page d'accueil (composant serveur)
+    subscribe-card.tsx          # Formulaire d'abonnement email (composant client)
+    layout.tsx                  # Layout racine
+    globals.css                 # Thème, polices, variables CSS
     icon.svg                    # Favicon
-    feed.xml/route.ts           # RSS feed endpoint
-    healthz/route.ts            # Health check
-    unsubscribe/                # Unsubscribe confirmation page
+    feed.xml/route.ts           # Endpoint du flux RSS
+    healthz/route.ts            # Vérification de santé
+    unsubscribe/                # Page de confirmation de désabonnement
     api/
-      subscribe/route.ts        # Subscribe API
-      unsubscribe/route.ts      # Unsubscribe API
-      cron/refresh/route.ts     # Cron refresh API
+      subscribe/route.ts        # API d'abonnement
+      unsubscribe/route.ts      # API de désabonnement
+      cron/refresh/route.ts     # API de rafraîchissement cron
   lib/
-    config.ts                   # Central configuration
-    wadifa.ts                   # Web scraper + keyword matcher
-    wadifa-cache.ts             # In-memory TTL cache
-    concours-store.ts           # Vercel KV persistence
-    rss.ts                      # RSS 2.0 feed builder
-    brevo.ts                    # Brevo API client
-    mailer.ts                   # Email composition + sending
-    date.ts                     # Date parsing utilities
-    normalize.ts                # Text normalization
-    unsubscribe-token.ts        # HMAC token signing/verification
+    config.ts                   # Configuration centrale
+    wadifa.ts                   # Scraper web + correspondance de mots-clés
+    wadifa-cache.ts             # Cache TTL en mémoire
+    concours-store.ts           # Persistence Vercel KV
+    rss.ts                      # Constructeur de flux RSS 2.0
+    brevo.ts                    # Client API Brevo
+    mailer.ts                   # Composition + envoi d'email
+    date.ts                     # Utilitaires d'analyse de date
+    normalize.ts                # Normalisation de texte
+    unsubscribe-token.ts        # Signature/vérification de jeton HMAC
 scripts/
-  smoke-http.ts                 # HTTP smoke test suite
-  selftest.ts                   # End-to-end self-test
+  smoke-http.ts                 # Suite de tests de fumée HTTP
+  selftest.ts                   # Auto-test de bout en bout
 ```
 
-## Testing
+## Tests
 
 ```sh
-# Smoke tests against a running server
+# Tests de fumée contre un serveur en cours d'exécution
 bun run test:smoke -- --url=http://localhost:3000
 
-# Full self-test (build, start server, run smoke tests, shutdown)
+# Auto-test complet (build, démarrer le serveur, exécuter les tests de fumée, arrêt)
 bun run test:self
 ```
 
-## License
+## Licence
 
-GNU v3.0
+[GNU GPL v3.0](https://www.gnu.org/licenses/gpl-3.0.html)
