@@ -5,7 +5,7 @@ import { getMatchedConcoursCached } from '@/lib/wadifa-cache';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  const all = await getMatchedConcoursCached();
+  const { items: all } = await getMatchedConcoursCached();
   const items = all.slice(0, config.maxFeedItems);
   const xml = buildRss(items);
   return new Response(xml, {

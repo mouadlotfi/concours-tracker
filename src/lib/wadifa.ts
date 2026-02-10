@@ -121,14 +121,14 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
     const html = await fetchHtml(u.toString());
     const $ = cheerio.load(html);
 
-    $("a[href^='/fr/']").each((_, el) => {
+    $("a[href*='/fr/']").each((_, el) => {
       const href = ($(el).attr('href') || '').trim();
-      if (!/^\/fr\/\d{4,6}\//.test(href)) return;
+      if (!/\/fr\/\d{4,6}\//.test(href)) return;
       const wadifaUrl = absUrl(href);
       if (seen.has(wadifaUrl)) return;
       seen.add(wadifaUrl);
 
-      const id = href.match(/^\/fr\/(\d{4,6})\//)?.[1] || wadifaUrl;
+      const id = href.match(/\/fr\/(\d{4,6})\//)?.[1] || wadifaUrl;
       const cardText = $(el).text() || '';
       const parsed = parseListCardText(cardText);
 

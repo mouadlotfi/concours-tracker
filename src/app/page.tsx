@@ -4,6 +4,8 @@ import { getMatchedConcoursCached } from '@/lib/wadifa-cache';
 
 import { SubscribeCard } from './subscribe-card';
 
+import type { MatchedConcours } from '@/lib/wadifa';
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -15,11 +17,12 @@ function fmtDate(iso: string | null): string {
 }
 
 export default async function HomePage() {
-  let items: Awaited<ReturnType<typeof getMatchedConcoursCached>> = [];
+  let items: MatchedConcours[] = [];
   let error: string | null = null;
 
   try {
-    items = await getMatchedConcoursCached();
+    const result = await getMatchedConcoursCached();
+    items = result.items;
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
   }

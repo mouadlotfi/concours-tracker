@@ -37,24 +37,38 @@ if (!hasKV) {
   );
 }
 
+export type MergeResult = {
+  /** All currently-open concours (sorted by deadline asc). */
+  all: MatchedConcours[];
+  /** Only the concours that were NOT previously in the store. */
+  newItems: MatchedConcours[];
+};
+
 /**
  * Merge freshly-scraped concours into the persistent store,
  * prune entries whose deposit deadline has passed, and return
- * the full list of currently-open concours sorted by deadline.
+ * both the full list and the genuinely-new items (for notifications).
  */
 export async function mergeAndPrune(
   freshItems: MatchedConcours[],
-): Promise<MatchedConcours[]> {
+): Promise<MergeResult> {
   const stored = await loadAll();
 
   // Index stored items by id for fast lookup
+  const storedIds = new Set<string>();
   const map = new Map<string, MatchedConcours>();
   for (const item of stored) {
+    storedIds.add(item.id);
     map.set(item.id, item);
   }
 
   // Upsert fresh items (always overwrite with latest scraped data)
+  // Track which ones are genuinely new (not previously stored)
+  const newItems: MatchedConcours[] = [];
   for (const item of freshItems) {
+    if (!storedIds.has(item.id)) {
+      newItems.push(item);
+    }
     map.set(item.id, item);
   }
 
@@ -75,7 +89,12 @@ export async function mergeAndPrune(
   });
 
   await saveAll(open);
-  return open;
+
+  // Only return new items that are still open
+  const openNewIds = new Set(open.map((it) => it.id));
+  const openNew = newItems.filter((it) => openNewIds.has(it.id));
+
+  return { all: open, newItems: openNew };
 }
 
 /**

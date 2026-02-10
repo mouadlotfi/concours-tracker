@@ -18,19 +18,19 @@ export async function POST(req: Request) {
   }
 
   try {
-    const items = await getMatchedConcoursCached({ force });
+    const { items, newItems } = await getMatchedConcoursCached({ force });
     const feedItems = items.slice(0, config.maxFeedItems);
 
     let notified = 0;
     let recipients = 0;
     let mailOk = true;
 
-    if (!dryRun && mailEnabled() && subscribersEnabled() && feedItems.length) {
+    if (!dryRun && mailEnabled() && subscribersEnabled() && newItems.length) {
       const subs = await brevoListSubscribers(300);
       recipients = subs.length;
       if (subs.length) {
-        mailOk = await notifySubscribers(subs, feedItems);
-        notified = mailOk ? feedItems.length : 0;
+        mailOk = await notifySubscribers(subs, newItems);
+        notified = mailOk ? newItems.length : 0;
       }
     }
 
@@ -41,6 +41,7 @@ export async function POST(req: Request) {
         force,
         matched: items.length,
         returned: feedItems.length,
+        newFound: newItems.length,
         recipients,
         notified,
         mailOk,
