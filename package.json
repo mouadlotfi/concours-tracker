@@ -1,0 +1,29 @@
+{
+  "name": "emploi-public-tech-rss-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test:smoke": "bun run ./scripts/smoke-http.ts",
+    "test:self": "bun run ./scripts/selftest.ts"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "next": "^16.1.6",
+    "node-cron": "^4.0.7",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.1",
+    "@types/react": "^19.2.13",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^10.0.0",
+    "eslint-config-next": "^16.1.6",
+    "typescript": "^5.9.3"
+  }
+}

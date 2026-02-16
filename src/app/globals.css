@@ -1,0 +1,114 @@
+@font-face {
+  font-family: 'Geist Pixel Square';
+  src: url('/fonts/GeistPixel-Square.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Pixel Grid';
+  src: url('/fonts/GeistPixel-Grid.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --border: rgba(16, 16, 24, 0.14);
+  --border-active: rgba(79, 70, 229, 0.45);
+  --text: #111118;
+  --text-dim: rgba(17, 17, 24, 0.58);
+  --accent: #4f46e5;
+  --accent-dim: #4338ca;
+  --accent-glow: rgba(79, 70, 229, 0.18);
+  --success: #059669;
+  --error: #dc2626;
+  --grid-color: rgba(79, 70, 229, 0.06);
+  --grid-size: 24px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100%;
+  padding: 42px 20px 96px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Geist', system-ui, sans-serif;
+  font-weight: 300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid-color) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 720px;
+  height: 720px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 62%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+::selection {
+  background: rgba(79, 70, 229, 0.18);
+}
+
+/* Desktop zoom */
+@media (min-width: 768px) {
+  body {
+    zoom: 1.1;
+  }
+}

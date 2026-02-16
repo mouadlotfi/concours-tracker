@@ -1,0 +1,183 @@
+:global(body::after) {
+  inset: -10vh -10vw;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(185, 28, 28, 0.10) 0%, transparent 55%),
+    radial-gradient(circle at 50% 55%, var(--accent-glow) 0%, transparent 60%);
+}
+
+.card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 560px;
+  padding: 46px 40px;
+  text-align: center;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgba(17, 17, 24, 0.10);
+  overflow: hidden;
+}
+
+.card::before,
+.card::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: rgba(79, 70, 229, 0.30);
+  border-style: solid;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.card::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.card::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+.icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 26px;
+  border: 1px solid var(--border);
+  background: rgba(17, 17, 24, 0.015);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Geist Pixel Square', monospace;
+  font-size: 22px;
+  color: rgba(185, 28, 28, 0.70);
+}
+
+.title {
+  font-family: 'Geist Pixel Grid', monospace;
+  font-size: clamp(18px, 4vw, 22px);
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+  color: #121224;
+}
+
+.desc {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-dim);
+  margin-bottom: 34px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 32px;
+  border: 1px solid rgba(185, 28, 28, 0.22);
+  background: rgba(185, 28, 28, 0.06);
+  color: #b91c1c;
+  font-family: 'Geist Pixel Square', monospace;
+  font-size: 13px;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  position: relative;
+}
+
+.btn:hover {
+  background: rgba(185, 28, 28, 0.10);
+  border-color: rgba(185, 28, 28, 0.32);
+}
+
+.btn:active {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.50;
+  cursor: not-allowed;
+}
+
+.tick {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  opacity: 0.65;
+}
+
+.spinner {
+  display: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(185, 28, 28, 0.22);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+.loading .spinner {
+  display: inline-block;
+}
+
+.loading .tick {
+  display: none;
+}
+
+.loading .label {
+  opacity: 0.60;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status {
+  margin-top: 22px;
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 20px;
+  transition: opacity 0.3s;
+}
+
+.statusOk {
+  color: var(--success);
+}
+
+.statusErr {
+  color: #b91c1c;
+}
+
+.back {
+  display: inline-block;
+  margin-top: 26px;
+  font-size: 12px;
+  color: rgba(17, 17, 24, 0.35);
+  text-decoration: none;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid rgba(17, 17, 24, 0.12);
+  padding-bottom: 2px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.back:hover {
+  color: rgba(17, 17, 24, 0.62);
+  border-color: rgba(17, 17, 24, 0.18);
+}
+
+@media (max-width: 520px) {
+  .card {
+    padding: 36px 18px;
+  }
+}

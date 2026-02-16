@@ -1,0 +1,582 @@
+.container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 960px;
+}
+
+.hero {
+  margin-bottom: 26px;
+}
+
+.kws {
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  color: rgba(17, 17, 24, 0.75);
+}
+
+.section {
+  margin-top: 22px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  font-family: 'Geist Pixel Square', monospace;
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 0;
+  color: rgba(17, 17, 24, 0.88);
+}
+
+.sectionMeta {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.sectionMeta a {
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.sectionMeta a:hover {
+  color: var(--text);
+}
+
+.sectionText {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+  max-width: 640px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 16px;
+  box-shadow: 0 18px 44px rgba(17, 17, 24, 0.07);
+}
+
+.itemMain {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.itemTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.itemTitle {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 400;
+  color: rgba(17, 17, 24, 0.92);
+}
+
+.itemTitleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.itemTitleLink:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.pill {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: rgba(17, 17, 24, 0.72);
+  background: rgba(79, 70, 229, 0.07);
+  border: 1px solid rgba(79, 70, 229, 0.16);
+  padding: 6px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(17, 17, 24, 0.78);
+}
+
+.metaKey {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(17, 17, 24, 0.52);
+}
+
+.metaVal {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-weight: 300;
+}
+
+.metaSep {
+  width: 1px;
+  height: 12px;
+  background: rgba(16, 16, 24, 0.12);
+}
+
+.itemLinks {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.linkBtn {
+  font-family: 'Geist Pixel Square', monospace;
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: rgba(17, 17, 24, 0.78);
+  border: 1px solid rgba(16, 16, 24, 0.14);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(17, 17, 24, 0.02);
+  transition: border-color 0.2s ease, transform 0.12s ease;
+}
+
+.linkBtn:hover {
+  border-color: rgba(79, 70, 229, 0.34);
+}
+
+.linkBtn:active {
+  transform: scale(0.98);
+}
+
+.details {
+  margin-top: 12px;
+  border-top: 1px dashed rgba(16, 16, 24, 0.14);
+  padding-top: 10px;
+}
+
+.summary {
+  cursor: pointer;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary::before {
+  content: '+';
+  display: inline-block;
+  width: 16px;
+  color: rgba(79, 70, 229, 0.78);
+}
+
+.details[open] .summary::before {
+  content: '-';
+}
+
+.detailsGrid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.detailRow {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 12px;
+}
+
+.detailK {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  color: rgba(17, 17, 24, 0.62);
+}
+
+.detailV {
+  font-size: 12px;
+  color: rgba(17, 17, 24, 0.84);
+}
+
+.empty {
+  font-family: 'Geist Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 12px 2px;
+}
+
+.badge {
+  font-family: 'Geist Pixel Square', monospace;
+  font-size: 10px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.title {
+  font-family: 'Geist Pixel Grid', monospace;
+  font-size: clamp(28px, 6vw, 38px);
+  font-weight: 400;
+  color: #121224;
+  line-height: 1.2;
+  margin-bottom: 12px;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 0;
+  max-width: 420px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgba(17, 17, 24, 0.1);
+  transition: border-color 0.3s ease;
+}
+
+/* (intentionally no footer inside the subscribe card) */
+
+.card:focus-within {
+  border-color: var(--border-active);
+}
+
+.card::before,
+.card::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: var(--border-active);
+  border-style: solid;
+  pointer-events: none;
+  opacity: 0.5;
+  transition: opacity 0.3s ease;
+}
+
+.card::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+
+.card::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+.card:focus-within::before,
+.card:focus-within::after {
+  opacity: 1;
+}
+
+.label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+  display: block;
+}
+
+.inputRow {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(17, 17, 24, 0.015);
+  transition: border-color 0.2s ease;
+  position: relative;
+}
+
+.inputRow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  padding: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(79, 70, 229, 0.10),
+    rgba(79, 70, 229, 0.95),
+    rgba(79, 70, 229, 0.18),
+    rgba(67, 56, 202, 0.92),
+    rgba(79, 70, 229, 0.10)
+  );
+  background-size: 240% 100%;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.inputRow:focus-within {
+  border-color: transparent;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.inputRow:focus-within::after {
+  opacity: 1;
+  animation: border-shift 1.9s linear infinite;
+}
+
+@keyframes border-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 240% 50%;
+  }
+}
+
+.input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 14px 16px;
+  color: var(--text);
+  font-family: 'Geist Mono', monospace;
+  font-size: 13px;
+  outline: none;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.input::placeholder {
+  color: var(--text-dim);
+  opacity: 0.75;
+}
+
+.btnSubmit {
+  background: var(--accent);
+  border: none;
+  padding: 14px 20px;
+  color: #fff;
+  font-family: 'Geist Pixel Square', monospace;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  white-space: nowrap;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.btnSubmit:hover {
+  background: var(--accent-dim);
+}
+
+.btnSubmit:active {
+  transform: scale(0.97);
+}
+
+.btnSubmitLoading {
+  pointer-events: none;
+  color: transparent;
+}
+
+.btnSubmitLoading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status {
+  margin-top: 16px;
+  min-height: 20px;
+}
+
+.statusMsg {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 5px;
+  animation: slide-in 0.3s ease;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ok {
+  background: rgba(5, 150, 105, 0.08);
+  color: var(--success);
+  border: 1px solid rgba(5, 150, 105, 0.18);
+}
+
+.err {
+  background: rgba(220, 38, 38, 0.07);
+  color: var(--error);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.okDot {
+  background: var(--success);
+}
+
+.errDot {
+  background: var(--error);
+}
+
+.footer {
+  margin-top: 8px;
+  margin-bottom: 24px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(16, 16, 24, 0.10);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-dim);
+  flex-wrap: wrap;
+}
+
+.sep {
+  width: 1px;
+  height: 12px;
+  background: var(--border);
+}
+
+.footer a {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer a:hover {
+  color: var(--text);
+}
+
+@media (max-width: 520px) {
+  .container {
+    max-width: 560px;
+  }
+
+  .item {
+    padding: 14px 14px;
+  }
+
+  .itemTitleRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .detailRow {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: 22px 16px;
+  }
+
+  .inputRow {
+    flex-direction: column;
+  }
+
+  .input {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .btnSubmit {
+    width: 100%;
+    padding: 16px;
+    text-align: center;
+  }
+}
