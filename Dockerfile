@@ -7,14 +7,14 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # ── Stage 2: Build Next.js ────────────────────────────────────────
-FROM node:22-alpine AS builder
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN bun run build
 
 # ── Stage 3: Minimal production image ─────────────────────────────
 FROM node:22-alpine AS runner
