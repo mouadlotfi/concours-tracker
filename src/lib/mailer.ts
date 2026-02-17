@@ -66,29 +66,32 @@ function buildNotifyHtml(concoursList: MatchedConcours[], unsubUrl: string): str
   const bg = '#f6f7fb';
   const surface = '#ffffff';
   const accent = '#4f46e5';
-  const accentDim = '#4338ca';
   const text = '#111118';
   const textDim = 'rgba(17,17,24,0.58)';
   const border = 'rgba(16,16,24,0.14)';
-  const accentGlow = 'rgba(79,70,229,0.18)';
+
+  const detailLine = (label: string, value: string | undefined) => {
+    if (!value) return '';
+    return `<p style="margin:4px 0 0;font-size:11px;font-family:${mono};color:${textDim};letter-spacing:0.3px;">${escapeHtml(label)} &mdash; ${escapeHtml(value)}</p>`;
+  };
 
   let itemsHtml = '';
   for (const c of concoursList) {
     const title = escapeHtml(c.title || 'Sans titre');
     const url = escapeHtml(c.sourceUrl || c.wadifaUrl || '#');
-    const reason = escapeHtml(c.matchReason || '');
-    const deadline = c.depositDeadlineIso
-      ? `<p style="margin:6px 0 0;font-size:11px;font-family:${mono};color:${textDim};letter-spacing:0.3px;">DATE LIMITE &mdash; ${escapeHtml(c.depositDeadlineIso)}</p>`
-      : '';
+    const deadlineDate = c.depositDeadlineIso?.split('T')[0]?.split('-').reverse().join('-');
     itemsHtml += `
       <tr><td style="padding:0 0 12px;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background:${surface};border:1px solid ${border};border-radius:6px;">
           <tr><td style="padding:16px 18px;">
-            <!-- corner decorations -->
             <div style="position:relative;">
               <a href="${url}" style="color:${text};font-family:${mono};font-size:13px;font-weight:400;text-decoration:none;line-height:1.5;letter-spacing:0.2px;">${title}</a>
-              ${deadline}
-              ${reason ? `<div style="margin-top:8px;"><span style="display:inline-block;background:${accentGlow};color:${accentDim};font-family:${mono};font-size:10px;text-transform:uppercase;letter-spacing:1.5px;padding:3px 10px;border-radius:999px;">${reason}</span></div>` : ''}
+              ${detailLine('DATE LIMITE DE DÉPÔT', deadlineDate)}
+              ${detailLine('DATE DU CONCOURS', c.concoursDateIso?.split('T')[0]?.split('-').reverse().join('-'))}
+              ${detailLine('ADMINISTRATION', c.details?.['Administration qui recrute'])}
+              ${detailLine('DIPLÔMES REQUIS', c.details?.['Diplômes requis'])}
+              ${detailLine('SPÉCIALITÉS REQUISES', c.details?.['Spécialités requises'])}
+              ${detailLine('TYPE DE DÉPÔT', c.details?.['Type de dépôt'])}
               <div style="margin-top:10px;">
                 <a href="${url}" style="display:inline-block;font-family:${mono};font-size:10px;text-transform:uppercase;letter-spacing:2px;color:${accent};text-decoration:none;padding:6px 14px;border:1px solid ${accent};border-radius:4px;">VOIR &rarr;</a>
               </div>
@@ -147,8 +150,12 @@ function buildNotifyText(concoursList: MatchedConcours[], unsubUrl: string): str
   for (const c of concoursList) {
     lines.push(`- ${c.title}`);
     lines.push(`  ${c.sourceUrl || c.wadifaUrl}`);
-    if (c.depositDeadlineIso) lines.push(`  Date limite: ${c.depositDeadlineIso}`);
-    if (c.matchReason) lines.push(`  Raison: ${c.matchReason}`);
+    if (c.depositDeadlineIso) lines.push(`  Date limite de dépôt: ${c.depositDeadlineIso.split('T')[0].split('-').reverse().join('-')}`);
+    if (c.concoursDateIso) lines.push(`  Date du concours: ${c.concoursDateIso.split('T')[0].split('-').reverse().join('-')}`);
+    if (c.details?.['Administration qui recrute']) lines.push(`  Administration: ${c.details['Administration qui recrute']}`);
+    if (c.details?.['Diplômes requis']) lines.push(`  Diplômes requis: ${c.details['Diplômes requis']}`);
+    if (c.details?.['Spécialités requises']) lines.push(`  Spécialités requises: ${c.details['Spécialités requises']}`);
+    if (c.details?.['Type de dépôt']) lines.push(`  Type de dépôt: ${c.details['Type de dépôt']}`);
   }
   lines.push('');
   lines.push(`Se désabonner: ${unsubUrl}`);

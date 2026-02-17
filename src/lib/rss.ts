@@ -8,7 +8,7 @@ function escapeXml(value: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+;
 }
 
 function cdata(value: string): string {
@@ -32,8 +32,8 @@ export function buildRss(items: MatchedConcours[]): string {
       const pub = it.depositDeadlineIso ? isoToRfc822(it.depositDeadlineIso) : now;
 
       const lines: string[] = [];
-      if (it.depositDeadlineIso) lines.push(`<p><strong>Date limite</strong>: ${escapeXml(it.depositDeadlineIso.slice(0, 10))}</p>`);
-      if (it.concoursDateIso) lines.push(`<p><strong>Date du concours</strong>: ${escapeXml(it.concoursDateIso.slice(0, 10))}</p>`);
+      if (it.depositDeadlineIso) lines.push(`<p><strong>Date limite</strong>: ${escapeXml(it.depositDeadlineIso.slice(0, 10).split('-').reverse().join('-'))}</p>`);
+      if (it.concoursDateIso) lines.push(`<p><strong>Date du concours</strong>: ${escapeXml(it.concoursDateIso.slice(0, 10).split('-').reverse().join('-'))}</p>`);
       lines.push(
         `<p><strong>Wadifa</strong>: <a href="${escapeXml(it.wadifaUrl)}">${escapeXml(it.wadifaUrl)}</a></p>`
       );
@@ -66,6 +66,7 @@ export function buildRss(items: MatchedConcours[]): string {
     .join('');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="/feed.xsl"?>
 <rss version="2.0">
   <channel>
     <title>${escapeXml(channelTitle)}</title>

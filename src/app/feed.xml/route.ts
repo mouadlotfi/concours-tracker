@@ -10,8 +10,8 @@ export async function GET() {
   const xml = buildRss(items);
   return new Response(xml, {
     headers: {
-      'Content-Type': 'application/rss+xml; charset=utf-8',
-      // Cache at the edge to keep Vercel Hobby fast.
+      // application/xml lets browsers render XSLT; RSS readers still detect the feed fine.
+      'Content-Type': 'application/xml; charset=utf-8',
       'Cache-Control': `public, s-maxage=${config.cacheSeconds}, stale-while-revalidate=86400`,
     },
   });
@@ -20,7 +20,7 @@ export async function GET() {
 export async function HEAD() {
   return new Response(null, {
     headers: {
-      'Content-Type': 'application/rss+xml; charset=utf-8',
+      'Content-Type': 'application/xml; charset=utf-8',
       'Cache-Control': `public, s-maxage=${config.cacheSeconds}, stale-while-revalidate=86400`,
     },
   });
