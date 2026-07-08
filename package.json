@@ -1,0 +1,21 @@
+{
+  "name": "concours-tracker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "hono": "^4.12.28",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260706.1",
+    "@types/node": "^25.2.1",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.107.0"
+  }
+}

@@ -1,0 +1,25 @@
+name = "concours-tracker"
+compatibility_date = "2026-07-06"
+compatibility_flags = [ "nodejs_compat" ]
+
+# Run locally or via CF Workers
+main = "src/index.tsx"
+
+[dev]
+local_protocol = "http"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "concours-db"
+database_id = "54db175f-a5ba-40e1-80f3-010e1e42a1d8"
+
+[triggers]
+# Run every 5 hours
+crons = ["0 */5 * * *"]
+
+[assets]
+directory = "./public"
+
+[vars]
+# You can set vars here, secrets should be set via `wrangler secret put`
+# For local dev, put secrets in .dev.vars
