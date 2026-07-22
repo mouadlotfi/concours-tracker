@@ -78,6 +78,7 @@ You will also need API keys for:
    NEXT_PUBLIC_TURNSTILE_SITE_KEY="1x00000000000000000000AA" # Local testing key
    TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA" # Local testing secret
    OPENROUTER_API_KEY="your-openrouter-key"
+   OPENROUTER_MODEL="openrouter/free"
    ```
 
 4. **Initialize local database:**
@@ -99,6 +100,16 @@ curl "http://127.0.0.1:8787/api/refresh?secret=your-secure-secret&force_email=tr
 ```
 *(The `force_email` flag ensures that a test email is sent to your configured `TEST_EMAIL` address regardless of whether the jobs are new or not).*
 
+To exercise the complete scraper and classifier without changing D1 or sending email, use:
+
+```bash
+curl "http://127.0.0.1:8787/api/refresh?secret=your-secure-secret&reclassify=true&dry_run=true"
+```
+
+Use `notify=false` without `dry_run=true` when you want to persist the refreshed classifications but suppress email.
+
+Generic IT listings are not rejected from their summary alone. The classifier follows the official Emploi Public page, attaches its decision PDF (including scanned PDFs) for ambiguous listings, and explicitly uses OpenRouter's free `cloudflare-ai` PDF parser with the `openrouter/free` router. PDFs are capped at 3 MB and AI requests are batched in pairs.
+
 ## Deployment
 
 Deploying the application to production requires linking your project to Cloudflare and provisioning the necessary resources.
@@ -117,6 +128,11 @@ Deploying the application to production requires linking your project to Cloudfl
 3. **Initialize Production Database:**
    ```bash
    bunx wrangler d1 execute concours-db --remote --file=schema.sql
+   ```
+
+   For an existing database, apply the checked-in migrations instead:
+   ```bash
+   bunx wrangler d1 migrations apply concours-db --remote
    ```
 
 4. **Set Production Secrets:**

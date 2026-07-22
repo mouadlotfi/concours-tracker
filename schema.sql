@@ -10,6 +10,11 @@ CREATE TABLE concours (
   matchReason TEXT,
   aiRelevant BOOLEAN DEFAULT NULL,
   aiReason TEXT,
+  classificationVersion TEXT,
+  classificationHash TEXT,
+  classificationSource TEXT,
+  classificationModel TEXT,
+  classifiedAt DATETIME,
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

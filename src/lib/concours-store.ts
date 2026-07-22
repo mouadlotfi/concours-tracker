@@ -23,6 +23,11 @@ export async function loadAll(env: Env): Promise<MatchedConcours[]> {
       matchReason: row.matchReason,
       aiRelevant: row.aiRelevant === null ? undefined : Boolean(row.aiRelevant),
       aiReason: row.aiReason,
+      classificationVersion: row.classificationVersion || undefined,
+      classificationHash: row.classificationHash || undefined,
+      classificationSource: row.classificationSource || undefined,
+      classificationModel: row.classificationModel || undefined,
+      classifiedAt: row.classifiedAt || undefined,
     }));
   } catch (err) {
     console.error('[store] loadAll error', err);
@@ -32,7 +37,8 @@ export async function loadAll(env: Env): Promise<MatchedConcours[]> {
 
 export async function mergeAndPrune(
   freshItems: MatchedConcours[],
-  env: Env
+  env: Env,
+  options: { reclassify?: boolean } = {}
 ): Promise<MergeResult> {
   const stored = await loadAll(env);
   const map = new Map<string, MatchedConcours>();
@@ -45,22 +51,34 @@ export async function mergeAndPrune(
 
   const newItems: MatchedConcours[] = [];
   
-  // Upsert new items, preserving existing AI classifications
+  // Stored verdicts are sticky by default. Only the explicitly requested
+  // reclassification workflow may replace an existing/manual verdict.
   let preservedCount = 0;
   for (const item of freshItems) {
     if (!map.has(item.id)) {
       newItems.push(item);
     }
     const existing = map.get(item.id);
-    // Sticky: once an item has an AI verdict stored, never overwrite it with a fresh one.
-    if (existing && existing.aiRelevant !== undefined) {
+    const preserveStoredVerdict = existing
+      && existing.aiRelevant !== undefined
+      && !options.reclassify;
+    if (preserveStoredVerdict) {
       item.aiRelevant = existing.aiRelevant;
       item.aiReason = existing.aiReason;
+      item.classificationVersion = existing.classificationVersion;
+      item.classificationHash = existing.classificationHash;
+      item.classificationSource = existing.classificationSource;
+      item.classificationModel = existing.classificationModel;
+      item.classifiedAt = existing.classifiedAt;
       preservedCount++;
     }
-    map.set(item.id, item);
+    map.set(item.id, existing ? {
+      ...item,
+      sourceUrl: item.sourceUrl || existing.sourceUrl,
+      details: { ...existing.details, ...item.details },
+    } : item);
   }
-  console.log(`[store] mergeAndPrune: ${newItems.length} new items, ${preservedCount} AI classifications preserved`);
+  console.log(`[store] mergeAndPrune: ${newItems.length} new items, ${preservedCount} stored verdicts preserved`);
 
   // Prune expired
   const beforePrune = map.size;
@@ -87,8 +105,11 @@ export async function mergeAndPrune(
     for (const item of all) {
       stmts.push(
         env.DB.prepare(
-          `INSERT INTO concours (id, title, wadifaUrl, sourceUrl, depositDeadlineIso, concoursDateIso, details, matchReason, aiRelevant, aiReason)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO concours (
+             id, title, wadifaUrl, sourceUrl, depositDeadlineIso, concoursDateIso, details,
+             matchReason, aiRelevant, aiReason, classificationVersion, classificationHash,
+             classificationSource, classificationModel, classifiedAt
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           item.id,
           item.title,
@@ -99,7 +120,12 @@ export async function mergeAndPrune(
           JSON.stringify(item.details),
           item.matchReason,
           item.aiRelevant === undefined ? null : item.aiRelevant ? 1 : 0,
-          item.aiReason || null
+          item.aiReason || null,
+          item.classificationVersion || null,
+          item.classificationHash || null,
+          item.classificationSource || null,
+          item.classificationModel || null,
+          item.classifiedAt || null
         )
       );
     }

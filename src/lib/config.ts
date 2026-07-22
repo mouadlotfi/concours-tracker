@@ -40,6 +40,7 @@ export interface Env {
   SMTP_SENDER_NAME?: string;
   SMTP_LIST_ID?: string;
   OPENROUTER_API_KEY?: string;
+  OPENROUTER_MODEL?: string;
   APP_BASE_URL?: string;
 }
 

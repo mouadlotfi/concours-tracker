@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import { Buffer } from 'node:buffer';
 
 import { configDefaults } from './config';
 import type { Env } from './config';
@@ -6,6 +7,12 @@ import { endOfDayIsoUtc, parseDdMmYyyyToIsoUtc } from './date';
 import { normalizeText } from './normalize';
 import { filterWithAI } from './ai-filter';
 import { timer } from './log';
+import {
+  CLASSIFIER_VERSION,
+  classificationContentHash,
+  classifyByRules,
+} from './classification';
+import type { RuleDecision, StoredClassification, ClassificationSource } from './classification';
 
 export type WadifaListItem = {
   id: string;
@@ -38,6 +45,14 @@ export type MatchedConcours = {
   matchReason: string;
   aiRelevant?: boolean;
   aiReason?: string;
+  classificationVersion?: string;
+  classificationHash?: string;
+  classificationSource?: ClassificationSource;
+  classificationModel?: string;
+  classifiedAt?: string;
+  classificationContext?: string;
+  classificationDocumentUrl?: string;
+  classificationDocumentDataUrl?: string;
   depositDeadlineIso: string | null;
   concoursDateIso: string | null;
   details: Record<string, string>;
@@ -60,17 +75,139 @@ function absUrl(href: string): string {
   return `${configDefaults.baseUrl}${href.startsWith('/') ? '' : '/'}${href}`;
 }
 
-async function fetchHtml(url: string): Promise<string> {
+async function readBoundedText(res: Response, maxBytes: number): Promise<string> {
+  const declaredLength = Number.parseInt(res.headers.get('content-length') || '0', 10);
+  if (declaredLength > maxBytes) {
+    throw new Error(`response too large: ${declaredLength} bytes`);
+  }
+  if (!res.body) return '';
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error(`response exceeded ${maxBytes} bytes`);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
+async function readBoundedBytes(res: Response, maxBytes: number): Promise<Uint8Array> {
+  const declaredLength = Number.parseInt(res.headers.get('content-length') || '0', 10);
+  if (declaredLength > maxBytes) {
+    await res.body?.cancel();
+    throw new Error(`response too large: ${declaredLength} bytes`);
+  }
+  if (!res.body) return new Uint8Array();
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error(`response exceeded ${maxBytes} bytes`);
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+async function fetchResource(url: string, accept: string): Promise<Response> {
   const res = await fetch(url, {
     headers: {
       'User-Agent': configDefaults.userAgent,
-      Accept: 'text/html,application/xhtml+xml',
+      Accept: accept,
     },
   });
   if (!res.ok) {
     throw new Error(`fetch failed: ${res.status} ${url}`);
   }
-  return await res.text();
+  return res;
+}
+
+async function fetchHtml(url: string, maxBytes = 750_000): Promise<string> {
+  const res = await fetchResource(url, 'text/html,application/xhtml+xml');
+  return readBoundedText(res, maxBytes);
+}
+
+const MAX_SOURCE_CONTEXT_CHARS = 12_000;
+const MAX_PDF_BYTES = 3_000_000;
+
+async function pdfResponseToDataUrl(res: Response, sourceUrl: string): Promise<string> {
+  const bytes = await readBoundedBytes(res, MAX_PDF_BYTES);
+  const signature = new TextDecoder().decode(bytes.slice(0, 5));
+  if (signature !== '%PDF-') throw new Error(`source is not a PDF: ${sourceUrl}`);
+  console.log(JSON.stringify({ event: 'official-pdf-attached', sourceUrl, bytes: bytes.byteLength }));
+  return `data:application/pdf;base64,${Buffer.from(bytes).toString('base64')}`;
+}
+
+type SourceContext = {
+  text: string;
+  officialDocumentUrl?: string;
+  officialDocumentDataUrl?: string;
+};
+
+async function fetchSourceContext(sourceUrl: string): Promise<SourceContext> {
+  const res = await fetchResource(sourceUrl, 'text/html,application/xhtml+xml,application/pdf');
+  const contentType = (res.headers.get('content-type') || '').toLowerCase();
+  if (contentType.includes('application/pdf')) {
+    const officialDocumentDataUrl = await pdfResponseToDataUrl(res, sourceUrl);
+    return { text: '', officialDocumentUrl: sourceUrl, officialDocumentDataUrl };
+  }
+
+  const html = await readBoundedText(res, 500_000);
+  const $ = cheerio.load(html);
+  $('script,style,noscript,svg').remove();
+  const mainText = $('main').first().text() || $('body').text();
+  const htmlContext = decodeEntities(mainText).replace(/\s+/g, ' ').trim().slice(0, MAX_SOURCE_CONTEXT_CHARS);
+
+  const pdfUrls: string[] = [];
+  $('a[href]').each((_, element) => {
+    const href = ($(element).attr('href') || '').trim();
+    const label = decodeEntities($(element).text()).replace(/\s+/g, ' ').trim();
+    if (!href) return;
+    const looksLikeOfficialDocument =
+      /\/concours\/download\//i.test(href)
+      || /\.pdf(?:$|[?#])/i.test(href)
+      || /(?:arrete|arrêté|decision|décision|قرار)/i.test(label);
+    if (!looksLikeOfficialDocument) return;
+    try {
+      const absolute = new URL(href, sourceUrl).toString();
+      if (!pdfUrls.includes(absolute)) pdfUrls.push(absolute);
+    } catch {
+      // Ignore malformed third-party links.
+    }
+  });
+
+  const officialPdfUrl = pdfUrls[0];
+  let officialDocumentDataUrl: string | undefined;
+  if (officialPdfUrl) {
+    try {
+      const pdfResponse = await fetchResource(officialPdfUrl, 'application/pdf');
+      officialDocumentDataUrl = await pdfResponseToDataUrl(pdfResponse, officialPdfUrl);
+    } catch (error) {
+      console.warn(`[wadifa] official PDF fetch failed for ${officialPdfUrl}:`, error instanceof Error ? error.message : error);
+    }
+  }
+  return { text: htmlContext, officialDocumentUrl: officialPdfUrl, officialDocumentDataUrl };
 }
 
 
@@ -200,7 +337,7 @@ export function isOpenDeadline(iso: string | null): boolean {
 
 export async function scrapeMatchedConcours(
   env: Env,
-  existingClassifications?: Map<string, { aiRelevant?: boolean; aiReason?: string }>
+  existingClassifications?: Map<string, StoredClassification>
 ): Promise<MatchedConcours[]> {
   const t = timer();
 
@@ -228,27 +365,106 @@ export async function scrapeMatchedConcours(
 
   // Split items into already-classified (skip AI) and new (send to AI).
   // This avoids wasting free-tier API calls re-classifying unchanged items.
-  const known = existingClassifications ?? new Map<string, { aiRelevant?: boolean; aiReason?: string }>();
+  const known = existingClassifications ?? new Map<string, StoredClassification>();
   const toClassify: MatchedConcours[] = [];
   const alreadyClassified: MatchedConcours[] = [];
 
   for (const item of out) {
     const existing = known.get(item.id);
-    if (existing && existing.aiRelevant !== undefined) {
+    if (existing?.aiRelevant !== undefined) {
       item.aiRelevant = existing.aiRelevant;
       item.aiReason = existing.aiReason;
+      item.classificationVersion = existing.classificationVersion;
+      item.classificationHash = existing.classificationHash;
+      item.classificationSource = existing.classificationSource;
+      item.classificationModel = existing.classificationModel;
+      item.classifiedAt = existing.classifiedAt;
       alreadyClassified.push(item);
     } else {
+      item.classificationVersion = CLASSIFIER_VERSION;
+      item.classificationHash = await classificationContentHash(item);
       toClassify.push(item);
     }
   }
-  console.log(`[wadifa] ${alreadyClassified.length} already classified, ${toClassify.length} need AI classification`);
+  console.log(`[wadifa] ${alreadyClassified.length} already classified, ${toClassify.length} need classification`);
 
-  // Bulk AI Classification Step (only takes 1 HTTP subrequest) — only for new items
-  let aiFiltered = toClassify;
-  if (toClassify.length > 0) {
+  const ruleClassified: MatchedConcours[] = [];
+  const ambiguous: MatchedConcours[] = [];
+  const applyRuleDecision = (item: MatchedConcours, decision: Exclude<RuleDecision, { kind: 'ambiguous' }>) => {
+    item.aiRelevant = decision.kind === 'accept';
+    item.aiReason = decision.reason;
+    item.classificationSource = 'rules';
+    item.classificationModel = undefined;
+    item.classifiedAt = new Date().toISOString();
+    console.log(JSON.stringify({
+      event: 'classification-decision',
+      id: item.id,
+      relevant: item.aiRelevant,
+      source: 'rules',
+      evidence: decision.kind === 'accept' ? decision.evidence : '',
+      classifierVersion: CLASSIFIER_VERSION,
+    }));
+  };
+
+  for (const item of toClassify) {
+    const decision = classifyByRules(item);
+    if (decision.kind === 'ambiguous') {
+      ambiguous.push(item);
+    } else {
+      applyRuleDecision(item, decision);
+      ruleClassified.push(item);
+    }
+  }
+  console.log(`[wadifa] Rules classified ${ruleClassified.length}; ${ambiguous.length} remain ambiguous`);
+
+  // Enrich only ambiguous listings before asking AI. This keeps subrequests bounded.
+  let detailFetches = 0;
+  let sourceContextFetches = 0;
+  const detailedIds = new Set<string>();
+  for (const item of ambiguous) {
+    if (detailFetches >= 10) break;
+    detailFetches++;
     try {
-      aiFiltered = await filterWithAI(toClassify, env);
+      const detail = await fetchWadifaDetail(item.wadifaUrl);
+      detailedIds.add(item.id);
+      item.sourceUrl = detail.sourceUrl;
+      item.details = { ...item.details, ...detail.details };
+      if (detail.title) item.title = detail.title;
+      if (detail.depositDeadlineIso && !item.depositDeadlineIso) item.depositDeadlineIso = detail.depositDeadlineIso;
+      if (detail.concoursDateIso && !item.concoursDateIso) item.concoursDateIso = detail.concoursDateIso;
+
+      if (detail.sourceUrl && sourceContextFetches < 10) {
+        sourceContextFetches++;
+        try {
+          const sourceContext = await fetchSourceContext(detail.sourceUrl);
+          item.classificationContext = sourceContext.text;
+          item.classificationDocumentUrl = sourceContext.officialDocumentUrl;
+          item.classificationDocumentDataUrl = sourceContext.officialDocumentDataUrl;
+        } catch (error) {
+          console.warn(`[wadifa] source context fetch failed for ${detail.sourceUrl}:`, error instanceof Error ? error.message : error);
+        }
+      }
+    } catch (error) {
+      console.warn(`[wadifa] ambiguous detail fetch failed for ${item.wadifaUrl}:`, error instanceof Error ? error.message : error);
+    }
+  }
+
+  // Details can make a previously ambiguous listing deterministic.
+  const aiCandidates: MatchedConcours[] = [];
+  for (const item of ambiguous) {
+    const decision = classifyByRules(item);
+    if (decision.kind === 'ambiguous') {
+      aiCandidates.push(item);
+    } else {
+      applyRuleDecision(item, decision);
+      ruleClassified.push(item);
+    }
+  }
+
+  let aiFiltered = aiCandidates;
+  if (aiCandidates.length > 0) {
+    try {
+      aiFiltered = await filterWithAI(aiCandidates, env);
       const relevant = aiFiltered.filter(it => it.aiRelevant === true).length;
       const notRelevant = aiFiltered.filter(it => it.aiRelevant === false).length;
       const unclassified = aiFiltered.filter(it => it.aiRelevant === undefined).length;
@@ -260,15 +476,16 @@ export async function scrapeMatchedConcours(
     console.log('[wadifa] No new items to classify, skipping AI call.');
   }
 
-  const combined = [...alreadyClassified, ...aiFiltered];
+  const classifiedById = new Map(
+    [...alreadyClassified, ...ruleClassified, ...aiFiltered].map((item) => [item.id, item])
+  );
+  const combined = out.map((item) => classifiedById.get(item.id) || item);
 
-  // Only fetch details for the ones the AI deemed relevant (or all if AI failed)
+  // Only fetch details for listings that either rules or AI deemed relevant.
   // This drastically reduces HTTP subrequests and avoids Cloudflare 50 subrequest limit
   const finalOut: MatchedConcours[] = [];
-  let detailFetches = 0;
-
   for (const item of combined) {
-    if (item.aiRelevant !== false) {
+    if (item.aiRelevant === true && !detailedIds.has(item.id)) {
       if (detailFetches < 10) {
         detailFetches++;
         try {
