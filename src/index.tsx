@@ -12,8 +12,27 @@ import { SubscribeCard } from './components/SubscribeCard';
 import { emailListSubscribers } from './lib/subscriptions';
 import { notifySubscribers } from './lib/mailer';
 import { timer } from './lib/log';
+import type { MatchedConcours } from './lib/scraper';
+import type { StoredClassification } from './lib/classification';
 
 const app = new Hono<{ Bindings: Env }>();
+
+function buildClassificationMap(items: MatchedConcours[]): Map<string, StoredClassification> {
+  const classifications = new Map<string, StoredClassification>();
+  for (const item of items) {
+    if (item.aiRelevant === undefined) continue;
+    classifications.set(item.id, {
+      aiRelevant: item.aiRelevant,
+      aiReason: item.aiReason,
+      classificationVersion: item.classificationVersion,
+      classificationHash: item.classificationHash,
+      classificationSource: item.classificationSource,
+      classificationModel: item.classificationModel,
+      classifiedAt: item.classifiedAt,
+    });
+  }
+  return classifications;
+}
 
 // Home Page
 app.get('/', async (c) => {
@@ -121,19 +140,46 @@ app.get('/api/refresh', async (c) => {
     const t = timer();
     console.log('[manual-refresh] Starting manual refresh...');
     const stored = await loadAll(c.env);
-    const existingClassifications = new Map<string, { aiRelevant?: boolean; aiReason?: string }>();
-    for (const it of stored) {
-      if (it.aiRelevant !== undefined) {
-        existingClassifications.set(it.id, { aiRelevant: it.aiRelevant, aiReason: it.aiReason });
-      }
-    }
+    const reclassify = c.req.query('reclassify') === 'true';
+    const dryRun = c.req.query('dry_run') === 'true';
+    const notificationsEnabled = !dryRun && c.req.query('notify') !== 'false';
+    const existingClassifications = reclassify ? new Map<string, StoredClassification>() : buildClassificationMap(stored);
     console.log(`[manual-refresh] Loaded ${stored.length} stored items (${existingClassifications.size} classified) in ${t.mark()}ms`);
 
     const fresh = await scrapeMatchedConcours(c.env, existingClassifications);
-    const { newItems, all } = await mergeAndPrune(fresh, c.env);
+
+    if (dryRun) {
+      const relevant = fresh.filter((item) => item.aiRelevant === true).length;
+      const rejected = fresh.filter((item) => item.aiRelevant === false).length;
+      const unclassified = fresh.filter((item) => item.aiRelevant === undefined).length;
+      console.log(JSON.stringify({
+        event: 'manual-refresh-dry-run',
+        scraped: fresh.length,
+        relevant,
+        rejected,
+        unclassified,
+        reclassify,
+      }));
+      return c.json({
+        ok: true,
+        dryRun: true,
+        reclassified: reclassify,
+        summary: { scraped: fresh.length, relevant, rejected, unclassified },
+        items: fresh.map((item) => ({
+          id: item.id,
+          title: item.title,
+          relevant: item.aiRelevant ?? null,
+          reason: item.aiReason || null,
+          source: item.classificationSource || null,
+          model: item.classificationModel || null,
+        })),
+      });
+    }
+
+    const { newItems, all } = await mergeAndPrune(fresh, c.env, { reclassify });
     console.log(`[manual-refresh] Scrape+merge done in ${t.mark()}ms: ${fresh.length} scraped, ${newItems.length} new, ${all.length} total`);
 
-    const forceEmail = c.req.query('force_email') === 'true';
+    const forceEmail = notificationsEnabled && c.req.query('force_email') === 'true';
     let itemsToNotify = forceEmail
       ? all.filter(it => it.aiRelevant === true).slice(0, 5)
       : newItems.filter(it => it.aiRelevant === true);
@@ -144,7 +190,7 @@ app.get('/api/refresh', async (c) => {
     }
 
     let sent = false;
-    if (itemsToNotify.length > 0) {
+    if (notificationsEnabled && itemsToNotify.length > 0) {
       const testEmail = c.env.TEST_EMAIL;
       const subscribers = forceEmail
         ? (testEmail ? [{ email: testEmail }] : [])
@@ -161,7 +207,7 @@ app.get('/api/refresh', async (c) => {
     }
 
     console.log(`[manual-refresh] Done in ${t.total()}ms: ${fresh.length} scraped, ${newItems.length} new, sent=${sent}`);
-    return c.text(`Success: Scraped ${fresh.length} valid items, ${newItems.length} new items. Notifications sent: ${sent}`);
+    return c.text(`Success: Scraped ${fresh.length} valid items, ${newItems.length} new items. Reclassified: ${reclassify}. Dry run: ${dryRun}. Notifications enabled: ${notificationsEnabled}. Notifications sent: ${sent}`);
   } catch (err) {
     console.error('[manual-refresh] failed:', err instanceof Error ? err.stack || err.message : err);
     return c.text(`Error: ${err instanceof Error ? err.message : String(err)}`, 500);
@@ -401,12 +447,7 @@ export default {
       try {
         stage = 'loadAll';
         const stored = await loadAll(env);
-        const existingClassifications = new Map<string, { aiRelevant?: boolean; aiReason?: string }>();
-        for (const it of stored) {
-          if (it.aiRelevant !== undefined) {
-            existingClassifications.set(it.id, { aiRelevant: it.aiRelevant, aiReason: it.aiReason });
-          }
-        }
+        const existingClassifications = buildClassificationMap(stored);
         console.log(`[cron] Loaded ${stored.length} stored items (${existingClassifications.size} classified) in ${t.mark()}ms`);
 
         stage = 'scrape';

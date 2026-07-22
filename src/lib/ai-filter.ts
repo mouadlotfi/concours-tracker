@@ -1,54 +1,108 @@
+import { z } from 'zod';
+
 import type { Env } from './config';
 import { getAppBaseUrl } from './config';
+import {
+  CLASSIFIER_VERSION,
+  getClassificationInput,
+  isAdmissibleAiEvidence,
+} from './classification';
 import type { MatchedConcours } from './scraper';
+
+const AiDecisionSchema = z.object({
+  id: z.string().min(1),
+  relevant: z.boolean(),
+  reason: z.string().trim().min(1).max(500),
+  evidence: z.string().trim().max(300),
+}).strict();
+
+const AiPayloadSchema = z.object({
+  results: z.array(AiDecisionSchema),
+}).strict();
+
+const FileAnnotationSchema = z.object({
+  type: z.literal('file'),
+  file: z.object({
+    hash: z.string(),
+    name: z.string().optional(),
+    content: z.array(z.object({
+      type: z.string(),
+      text: z.string().optional(),
+    }).passthrough()),
+  }).passthrough(),
+}).passthrough();
+
+const OpenRouterResponseSchema = z.object({
+  model: z.string().optional(),
+  choices: z.array(z.object({
+    message: z.object({
+      content: z.string(),
+      annotations: z.array(FileAnnotationSchema).optional(),
+    }).passthrough(),
+  }).passthrough()).min(1),
+}).passthrough();
+
+const AI_BATCH_SIZE = 2;
 
 export async function filterWithAI(
   items: MatchedConcours[],
   env: Env
 ): Promise<MatchedConcours[]> {
   if (!env.OPENROUTER_API_KEY) {
-    console.warn('[ai-filter] OPENROUTER_API_KEY not set. Skipping AI filter.');
+    console.warn(JSON.stringify({ event: 'ai-filter-skipped', reason: 'OPENROUTER_API_KEY not set' }));
     return items;
   }
 
   if (items.length === 0) return items;
 
-  const prompt = `
-You are a classifier for Moroccan public sector job concours.
-Your goal is to identify concours where WEB DEVELOPMENT or SOFTWARE DEVELOPMENT (développement informatique / génie logiciel) is one of the target roles.
+  const classified: MatchedConcours[] = [];
+  for (let index = 0; index < items.length; index += AI_BATCH_SIZE) {
+    const batch = items.slice(index, index + AI_BATCH_SIZE);
+    classified.push(...await filterBatchWithAI(batch, env));
+  }
+  return classified;
+}
 
-Mark as RELEVANT (true) if the required specialties explicitly mention:
-- "développement informatique" or "développement web"
-- "génie logiciel" (software engineering)
-Even if these are grouped in a single announcement alongside unrelated specialties (e.g. plumbing, finance, administration), they are still relevant because there are dedicated posts allocated specifically for developers.
+async function filterBatchWithAI(items: MatchedConcours[], env: Env): Promise<MatchedConcours[]> {
+  const configuredModel = env.OPENROUTER_MODEL || 'openrouter/free';
+  const inputs = items.map((item) => ({
+    ...getClassificationInput(item),
+    officialDocument: item.classificationDocumentDataUrl ? `concours-${item.id}.pdf` : '',
+  }));
+  // Emploi Public blocks OpenRouter from fetching some document URLs directly.
+  // Attach only PDFs that this Worker fetched and validated successfully.
+  const documents = items.filter((item) => item.classificationDocumentDataUrl);
+  const prompt = `You classify Moroccan public-sector concours for WEB or SOFTWARE DEVELOPMENT eligibility.
 
-Mark as NOT RELEVANT (false) if:
-- The role is medical, healthcare, legal, administrative, financial, construction, urban planning, sports, operations, or any non-IT field AND does not explicitly list "développement informatique" or "génie logiciel" as an option.
-- It only lists generic "informatique", "reseaux", "gestion informatique" or "sécurité" alongside many non-IT specialties.
-- The role is purely about IT management, IT security, or IT support.
+Rules:
+- Relevant=true only when the supplied text explicitly describes software/web development, programming, software engineering, or application-development work.
+- "Toutes les spécialités" is NEVER evidence of development eligibility.
+- Generic "informatique", "génie informatique", information systems, networks, cybersecurity, support, BI, or IT management are NOT sufficient.
+- Finance, planning, control, administration, healthcare, law, construction, and other non-development jobs are not relevant.
+- Do not infer that a broad degree or specialty includes development.
+- Official PDF files are named concours-ID.pdf and belong only to the matching concours ID.
+- Inspect an attached official PDF when present, including scanned/image-only pages.
+- For every relevant=true result, evidence must be an exact quote copied from that concours input or its matching official PDF. If no exact quote exists, return relevant=false and evidence="".
 
-Be accurate and objective. Only mark as relevant if a developer would be eligible to apply.
+Respond only with this JSON shape:
+{"results":[{"id":"...","relevant":true,"reason":"one short sentence","evidence":"exact quote from input"}]}
 
-Respond ONLY with a JSON object of the form:
-{"results": [ { "id": "...", "relevant": true/false, "reason": "..." }, ... ] }
+Classifier version: ${CLASSIFIER_VERSION}
+Concours:
+${JSON.stringify(inputs, null, 2)}`;
 
-Each object must have:
-- "id": The ID of the concours
-- "relevant": boolean
-- "reason": A short 1-sentence reason for your decision.
-
-Concours list:
-${JSON.stringify(
-  items.map((it) => ({
-    id: it.id,
-    title: it.title,
-    organization: it.details?.['Administration qui recrute'] || '',
-    specialties: it.details?.['Spécialités requises'] || '',
-  })),
-  null,
-  2
-)}
-  `;
+  const messageContent = documents.length === 0
+    ? prompt
+    : [
+        { type: 'text', text: prompt },
+        ...documents.map((item) => ({
+          type: 'file',
+          file: {
+            filename: `concours-${item.id}.pdf`,
+            file_data: item.classificationDocumentDataUrl,
+          },
+        })),
+      ];
 
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -60,52 +114,117 @@ ${JSON.stringify(
         'X-Title': 'Concours Tracker',
       },
       body: JSON.stringify({
-        model: 'openrouter/free',
-        messages: [{ role: 'user', content: prompt }],
+        model: configuredModel,
+        temperature: 0,
+        messages: [{ role: 'user', content: messageContent }],
+        ...(documents.length > 0 ? {
+          plugins: [{ id: 'file-parser', pdf: { engine: 'cloudflare-ai' } }],
+        } : {}),
         response_format: { type: 'json_object' },
       }),
     });
 
     if (!res.ok) {
-      console.error('[ai-filter] API Error:', res.status, await res.text());
-      return items; // Fallback to returning all if API fails
+      const raw = await res.text();
+      console.error(JSON.stringify({
+        event: 'ai-filter-http-error',
+        status: res.status,
+        body: raw.slice(0, 1_200),
+        model: configuredModel,
+      }));
+      return items;
     }
 
-    const data = await res.json() as any;
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) return items;
+    const response = OpenRouterResponseSchema.safeParse(await res.json());
+    if (!response.success) {
+      console.error(JSON.stringify({ event: 'ai-filter-response-invalid', issues: response.error.issues }));
+      return items;
+    }
 
-    // The model returns { "results": [ ... ] } per the prompt + json_object format.
-    let parsed: any;
+    const actualModel = response.data.model || configuredModel;
+    const documentTextById = new Map<string, string>();
+    for (const annotation of response.data.choices[0].message.annotations || []) {
+      const name = annotation.file.name || '';
+      const id = name.match(/^concours-(.+)\.pdf$/)?.[1];
+      if (!id) continue;
+      const text = annotation.file.content
+        .filter((part) => part.type === 'text' && part.text)
+        .map((part) => part.text || '')
+        .join(' ');
+      documentTextById.set(id, text);
+    }
+    let decoded: unknown;
     try {
-      parsed = JSON.parse(content);
-    } catch (e) {
-      console.error('[ai-filter] Failed to parse JSON:', content);
+      decoded = JSON.parse(response.data.choices[0].message.content);
+    } catch {
+      console.error(JSON.stringify({ event: 'ai-filter-json-invalid', model: actualModel }));
       return items;
     }
 
-    const arr = Array.isArray(parsed) ? parsed : parsed?.results;
-    if (!Array.isArray(arr)) {
-      console.error('[ai-filter] Expected { results: [...] }, got:', content.slice(0, 200));
+    const payload = AiPayloadSchema.safeParse(decoded);
+    if (!payload.success) {
+      console.error(JSON.stringify({ event: 'ai-filter-payload-invalid', issues: payload.error.issues, model: actualModel }));
       return items;
     }
 
-    const decisions = new Map<string, any>(arr.map((p: any) => [String(p.id), p]));
-    console.log(`[ai-filter] AI classified ${decisions.size}/${items.length} items. Model: ${data.model || 'unknown'}`);
+    const requestedIds = new Set(items.map((item) => item.id));
+    const decisions = new Map(
+      payload.data.results
+        .filter((decision) => requestedIds.has(decision.id))
+        .map((decision) => [decision.id, decision])
+    );
 
-    return items.map((it) => {
-      const decision = decisions.get(String(it.id));
-      if (decision) {
-        return {
-          ...it,
-          aiRelevant: decision.relevant,
-          aiReason: decision.reason,
-        };
-      }
-      return it;
+    const classified = items.map((item) => {
+      const decision = decisions.get(item.id);
+      if (!decision) return item;
+
+      const evidenceAccepted = !decision.relevant || isAdmissibleAiEvidence(
+        item,
+        decision.evidence,
+        documentTextById.get(item.id) || ''
+      );
+      const relevant = decision.relevant && evidenceAccepted;
+      const reason = evidenceAccepted
+        ? decision.reason
+        : `Garde-fou: preuve AI rejetée (${decision.evidence || 'aucune preuve'}).`;
+
+      console.log(JSON.stringify({
+        event: 'classification-decision',
+        id: item.id,
+        relevant,
+        source: 'ai',
+        model: actualModel,
+        evidence: decision.evidence,
+        evidenceAccepted,
+        classifierVersion: CLASSIFIER_VERSION,
+      }));
+
+      return {
+        ...item,
+        aiRelevant: relevant,
+        aiReason: reason,
+        classificationSource: 'ai' as const,
+        classificationModel: actualModel,
+        classifiedAt: new Date().toISOString(),
+      };
     });
-  } catch (err) {
-    console.error('[ai-filter] Fetch error:', err);
+
+    console.log(JSON.stringify({
+      event: 'ai-filter-complete',
+      requested: items.length,
+      returned: decisions.size,
+      documents: documents.length,
+      documentAnnotations: documentTextById.size,
+      model: actualModel,
+      classifierVersion: CLASSIFIER_VERSION,
+    }));
+    return classified;
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: 'ai-filter-fetch-error',
+      error: error instanceof Error ? error.message : String(error),
+      model: configuredModel,
+    }));
     return items;
   }
 }

@@ -12,6 +12,7 @@ local_protocol = "http"
 binding = "DB"
 database_name = "concours-db"
 database_id = "54db175f-a5ba-40e1-80f3-010e1e42a1d8"
+migrations_dir = "migrations"
 
 [triggers]
 # Run every 5 hours
@@ -23,3 +24,18 @@ directory = "./public"
 [vars]
 # You can set vars here, secrets should be set via `wrangler secret put`
 # For local dev, put secrets in .dev.vars
+OPENROUTER_MODEL = "openrouter/free"
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+persist = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.05
