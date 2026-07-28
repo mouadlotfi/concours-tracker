@@ -19,9 +19,9 @@ function cdata(value: string): string {
 export function buildRss(items: MatchedConcours[], appBaseUrl: string): string {
   const now = new Date().toUTCString();
 
-  const channelTitle = 'Concours Développement Web';
+  const channelTitle = 'Concours Développement Informatique';
   const channelLink = appBaseUrl;
-  const channelDesc = 'Concours publics lies au developpement web';
+  const channelDesc = 'Concours publics lies au developpement informatique';
 
   const renderedItems = items
     .map((it) => {

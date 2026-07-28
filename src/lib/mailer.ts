@@ -109,7 +109,7 @@ function buildNotifyHtml(concoursList: MatchedConcours[], unsubUrl: string): str
         <!-- Header -->
         <tr><td style="padding:0 0 28px;text-align:center;">
           <p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;letter-spacing:4px;color:${accent};font-family:${mono};">CONCOURS</p>
-          <h1 style="margin:0;font-size:22px;font-weight:400;color:${text};letter-spacing:0.3px;font-family:${mono};">D&eacute;veloppement Web</h1>
+          <h1 style="margin:0;font-size:22px;font-weight:400;color:${text};letter-spacing:0.3px;font-family:${mono};">D&eacute;veloppement Informatique</h1>
         </td></tr>
 
         <!-- Main card -->
@@ -144,7 +144,7 @@ function buildNotifyHtml(concoursList: MatchedConcours[], unsubUrl: string): str
 
 function buildNotifyText(concoursList: MatchedConcours[], unsubUrl: string): string {
   const lines: string[] = [];
-  lines.push(`Concours Développement Web — ${concoursList.length} nouveau${concoursList.length > 1 ? 'x' : ''} concours`);
+  lines.push(`Concours Développement Informatique — ${concoursList.length} nouveau${concoursList.length > 1 ? 'x' : ''} concours`);
   lines.push('');
   for (const c of concoursList) {
     lines.push(`- ${c.title}`);
@@ -178,7 +178,7 @@ function buildWelcomeHtml(unsubUrl: string, rssUrl: string): string {
         <!-- Header -->
         <tr><td style="padding:0 0 28px;text-align:center;">
           <p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;letter-spacing:4px;color:${accent};font-family:${mono};">CONCOURS</p>
-          <h1 style="margin:0;font-size:22px;font-weight:400;color:${text};letter-spacing:0.3px;font-family:${mono};">D&eacute;veloppement Web</h1>
+          <h1 style="margin:0;font-size:22px;font-weight:400;color:${text};letter-spacing:0.3px;font-family:${mono};">D&eacute;veloppement Informatique</h1>
         </td></tr>
 
         <!-- Main card -->
@@ -193,7 +193,7 @@ function buildWelcomeHtml(unsubUrl: string, rssUrl: string): string {
               </table>
 
               <h2 style="margin:0 0 12px;font-family:${mono};font-size:16px;font-weight:400;color:${text};letter-spacing:0.2px;">Abonnement confirm&eacute;</h2>
-              <p style="margin:0 0 22px;font-family:${mono};font-size:12px;line-height:1.7;color:${textDim};font-weight:300;">Vous recevrez un email &agrave; chaque nouveau concours d&eacute;tect&eacute; comme relevant du d&eacute;veloppement web.</p>
+              <p style="margin:0 0 22px;font-family:${mono};font-size:12px;line-height:1.7;color:${textDim};font-weight:300;">Vous recevrez un email &agrave; chaque nouveau concours d&eacute;tect&eacute; comme relevant du d&eacute;veloppement informatique.</p>
 
               <!-- RSS box -->
               <table width="100%" cellpadding="0" cellspacing="0">
@@ -221,9 +221,9 @@ function buildWelcomeHtml(unsubUrl: string, rssUrl: string): string {
 
 function buildWelcomeText(unsubUrl: string, rssUrl: string): string {
   return [
-    'Abonnement confirme — Concours Developpement Web',
+    'Abonnement confirme — Concours Developpement Informatique',
     '',
-    'Vous recevrez un email à chaque nouveau concours détecté comme relevant du développement web.',
+    'Vous recevrez un email à chaque nouveau concours détecté comme relevant du développement informatique.',
     '',
     `Flux RSS: ${rssUrl}`,
     '',
@@ -244,9 +244,9 @@ export async function sendWelcomeEmail(email: string, env: Env): Promise<boolean
   const rssUrl = `${appBaseUrl}/feed.xml`;
 
   return sendemail({
-    sender: { email: env.SMTP_SENDER_EMAIL || '', name: env.SMTP_SENDER_NAME || 'Concours Developpement Web' },
+    sender: { email: env.SMTP_SENDER_EMAIL || '', name: env.SMTP_SENDER_NAME || 'Concours Developpement Informatique' },
     to: [{ email }],
-    subject: 'Abonnement confirme — Concours Developpement Web',
+    subject: 'Abonnement confirme — Concours Developpement Informatique',
     textContent: buildWelcomeText(unsubUrl, rssUrl),
     htmlContent: buildWelcomeHtml(unsubUrl, rssUrl),
   }, env);
@@ -261,13 +261,13 @@ export async function notifySubscribers(
   if (!subscribers.length || !concoursList.length) return true;
 
   const appBaseUrl = getAppBaseUrl(env);
-  const sender = { email: env.SMTP_SENDER_EMAIL || '', name: env.SMTP_SENDER_NAME || 'Concours Developpement Web' };
+  const sender = { email: env.SMTP_SENDER_EMAIL || '', name: env.SMTP_SENDER_NAME || 'Concours Developpement Informatique' };
   let okAll = true;
 
   const subject =
     concoursList.length === 1
       ? `Nouveau concours: ${(concoursList[0]?.title || '').slice(0, 60)}`
-      : `${concoursList.length} nouveaux concours — Développement Web`;
+      : `${concoursList.length} nouveaux concours — Développement Informatique`;
 
   for (let i = 0; i < subscribers.length; i += 50) {
     const batch = subscribers.slice(i, i + 50);

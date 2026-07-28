@@ -54,7 +54,7 @@ app.get('/', async (c) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Concours Développement Web</title>
+        <title>Concours Développement Informatique</title>
         <link rel="icon" href="/favicon.svg" type="image/svg+xml">
         <link rel="stylesheet" href="/css/globals.css">
         <link rel="stylesheet" href="/css/page.css">
@@ -64,7 +64,7 @@ app.get('/', async (c) => {
           <header class="hero">
             <div class="badge">concours</div>
             <h1 class="title">
-              Concours Développement Web
+              Concours Développement Informatique
             </h1>
           </header>
 

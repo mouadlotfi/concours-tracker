@@ -16,14 +16,14 @@
 
 ## Overview
 
-**Concours Tracker** is a fully serverless application designed to monitor the Moroccan public sector job portal (`emploi-public.ma`), intelligently filter for specific IT and Web Development roles using AI, and distribute these opportunities to subscribers via Email and RSS.
+**Concours Tracker** is a fully serverless application designed to monitor the Moroccan public sector job portal (`emploi-public.ma`), intelligently filter for specific IT and Software Development roles using AI, and distribute these opportunities to subscribers via Email and RSS.
 
 Built entirely on the Edge using Cloudflare Workers, Hono, and D1, the application requires zero traditional server infrastructure and scales infinitely.
 
 ## Features
 
 - **Serverless Architecture**: Runs entirely on Cloudflare Workers edge network.
-- **AI-Powered Filtering**: Uses OpenRouter AI to semantically understand job postings and filter strictly for relevant IT/Web Development positions, bypassing unreliable keyword matching.
+- **AI-Powered Filtering**: Uses OpenRouter AI to semantically understand job postings and filter strictly for relevant IT/Software Development positions, bypassing unreliable keyword matching.
 - **Automated Scraping**: Periodically scrapes the public job board using Cloudflare Cron Triggers.
 - **Email Subscriptions**: Integrated with email (Sendinblue) to automatically send HTML email notifications to subscribers when new jobs are detected.
 - **RSS Feed Generation**: Exposes a standard XML RSS feed for easy integration with feed readers and automation tools.
