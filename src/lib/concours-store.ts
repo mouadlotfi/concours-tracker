@@ -1,8 +1,44 @@
 import type { Env } from './config';
 import type { MatchedConcours } from './scraper';
 import { isOpenDeadline } from './scraper';
+import { endOfDayIsoUtc, parseDdMmYyyyToIsoUtc } from './date';
 
 export type MergeResult = { all: MatchedConcours[]; newItems: MatchedConcours[] };
+
+export function mergeConcours(
+  existing: MatchedConcours | undefined,
+  fresh: MatchedConcours
+): MatchedConcours {
+  const details = {
+    ...(existing?.details || {}),
+    ...Object.fromEntries(Object.entries(fresh.details).filter(([, value]) => value.trim())),
+  };
+
+  if (!details['Administration qui recrute']) {
+    try {
+      const slug = decodeURIComponent(new URL(fresh.wadifaUrl).pathname.split('/').pop() || '');
+      const administration = slug.match(/^(.*?)-concours-de-/i)?.[1]?.replace(/-/g, ' ').trim();
+      // ponytail: URL fallback covers old rows; remove when every stored row uses the new card selectors.
+      if (administration) details['Administration qui recrute'] = administration;
+    } catch {
+      // Keep the field empty when a legacy URL is malformed.
+    }
+  }
+
+  const deadline = details['Date limite de dépôt des candidatures']
+    || details['Date limite de dépôt des candidatures :'];
+  const concoursDate = details['Date du concours'] || details['Date du concours :'];
+
+  return {
+    ...fresh,
+    sourceUrl: fresh.sourceUrl || existing?.sourceUrl || null,
+    depositDeadlineIso: fresh.depositDeadlineIso || existing?.depositDeadlineIso
+      || (deadline ? endOfDayIsoUtc(deadline) : null),
+    concoursDateIso: fresh.concoursDateIso || existing?.concoursDateIso
+      || (concoursDate ? parseDdMmYyyyToIsoUtc(concoursDate) : null),
+    details,
+  };
+}
 
 export async function loadAll(env: Env): Promise<MatchedConcours[]> {
   try {
@@ -45,7 +81,7 @@ export async function mergeAndPrune(
 
   // Load existing into map
   for (const item of stored) {
-    map.set(item.id, item);
+    map.set(item.id, mergeConcours(undefined, item));
   }
   console.log(`[store] mergeAndPrune: ${stored.length} stored items, ${freshItems.length} fresh items`);
 
@@ -72,11 +108,7 @@ export async function mergeAndPrune(
       item.classifiedAt = existing.classifiedAt;
       preservedCount++;
     }
-    map.set(item.id, existing ? {
-      ...item,
-      sourceUrl: item.sourceUrl || existing.sourceUrl,
-      details: { ...existing.details, ...item.details },
-    } : item);
+    map.set(item.id, mergeConcours(existing, item));
   }
   console.log(`[store] mergeAndPrune: ${newItems.length} new items, ${preservedCount} stored verdicts preserved`);
 

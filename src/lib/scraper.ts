@@ -1,4 +1,5 @@
 import * as cheerio from 'cheerio';
+import type { AnyNode } from 'domhandler';
 import { Buffer } from 'node:buffer';
 
 import { configDefaults } from './config';
@@ -252,6 +253,30 @@ function parseListCardText(raw: string): Omit<WadifaListItem, 'id' | 'wadifaUrl'
   };
 }
 
+export function parseListCard(card: cheerio.Cheerio<AnyNode>): Omit<WadifaListItem, 'id' | 'wadifaUrl'> {
+  const parsed = parseListCardText(decodeEntities(card.text() || ''));
+  const titleNode = card.find('.job-listing-title').clone();
+  titleNode.find('.wf-fresh-new').remove();
+
+  const deadlineText = card.find('.wf-datechip-orange').attr('title')?.match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
+    || parsed.deadlineText;
+  const concoursDateText = card.find('.wf-datechip-green').text().match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
+    || parsed.concoursDateText;
+
+  return {
+    ...parsed,
+    title: titleNode.text().replace(/\s+/g, ' ').trim() || parsed.title,
+    administration: (card.find('.wf-emp-logo').attr('alt') || '').trim() || parsed.administration,
+    posts: card.find('.icon-material-outline-group').parent().text().replace(/\s+/g, ' ').trim() || parsed.posts,
+    diplomas: card.find('.diplomas').map((_, el) => card.find(el).text().trim()).get().filter(Boolean).join(' ') || parsed.diplomas,
+    specialties: card.find('.speciliteList').map((_, el) => card.find(el).text().trim()).get().filter(Boolean).join(' ') || parsed.specialties,
+    deadlineText,
+    concoursDateText,
+    depositDeadlineIso: deadlineText ? endOfDayIsoUtc(deadlineText) : null,
+    concoursDateIso: concoursDateText ? parseDdMmYyyyToIsoUtc(concoursDateText) : null,
+  };
+}
+
 export async function listWadifaItems(): Promise<WadifaListItem[]> {
   const items: WadifaListItem[] = [];
   const seen = new Set<string>();
@@ -266,14 +291,13 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
 
     $("a[href*='/fr/']").each((_, el) => {
       const href = ($(el).attr('href') || '').trim();
-      if (!/\/fr\/\d{4,6}\//.test(href)) return;
-      const wadifaUrl = absUrl(href);
+      const id = href.match(/\/fr\/(\d{4,6})\//)?.[1];
+      if (!id) return;
+      const wadifaUrl = absUrl(`/fr/${id}/`);
       if (seen.has(wadifaUrl)) return;
       seen.add(wadifaUrl);
 
-      const id = href.match(/\/fr\/(\d{4,6})\//)?.[1] || wadifaUrl;
-      const cardText = decodeEntities($(el).text() || '');
-      const parsed = parseListCardText(cardText);
+      const parsed = parseListCard($(el));
 
       items.push({
         id,
