@@ -61,7 +61,7 @@ function renderItem(it: MatchedConcours, pinned = false) {
               ${it.title}
             </a>
           </h3>
-          <span class="pill">Date limite de dépôt: ${fmtDate(it.depositDeadlineIso)}</span>
+          <span class="pill${pinned ? ' pillPinned' : ''}">Date limite de dépôt: ${fmtDate(it.depositDeadlineIso)}</span>
         </div>
         <div class="itemMeta">
           <span class="metaGroup">

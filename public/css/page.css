@@ -145,13 +145,22 @@
 
 .itemPinned {
   position: relative;
-  border: 2px solid transparent;
+  border: 1px solid transparent;
   background:
     linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(90deg, #ff3d00, #ff7a00, #ffd600, #ff7a00, #ff3d00) border-box;
-  background-size: 100% 100%, 300% 300%;
-  box-shadow: 0 20px 48px rgba(255, 107, 0, 0.15);
-  animation: pinned-border 4s ease infinite;
+    linear-gradient(90deg, rgba(79, 70, 229, 0.10), rgba(79, 70, 229, 0.95), rgba(79, 70, 229, 0.18), rgba(67, 56, 202, 0.92), rgba(79, 70, 229, 0.10)) border-box;
+  background-size: 100% 100%, 240% 100%;
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 18px 44px rgba(17, 17, 24, 0.07);
+  animation: border-shift 1.9s ease-in-out infinite alternate;
+}
+
+.itemPinned .pillPinned {
+  border-color: transparent;
+  background:
+    linear-gradient(rgba(79, 70, 229, 0.07), rgba(79, 70, 229, 0.07)) padding-box,
+    linear-gradient(90deg, rgba(79, 70, 229, 0.10), rgba(79, 70, 229, 0.95), rgba(79, 70, 229, 0.18), rgba(67, 56, 202, 0.92), rgba(79, 70, 229, 0.10)) border-box;
+  background-size: 100% 100%, 240% 100%;
+  animation: border-shift 1.9s ease-in-out infinite alternate;
 }
 
 .itemPinned::after {
@@ -164,18 +173,9 @@
   transform: rotate(18deg);
 }
 
-@keyframes pinned-border {
-  0%,
-  100% {
-    background-position: 0 0, 0% 50%;
-  }
-  50% {
-    background-position: 0 0, 100% 50%;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .itemPinned {
+  .itemPinned,
+  .pillPinned {
     animation: none;
   }
 }
