@@ -48,23 +48,26 @@ export async function loadAll(env: Env): Promise<MatchedConcours[]> {
 
     if (!results) return [];
 
-    return results.map((row: any) => ({
-      id: row.id,
-      wadifaUrl: row.wadifaUrl,
-      sourceUrl: row.sourceUrl,
-      title: row.title,
-      depositDeadlineIso: row.depositDeadlineIso,
-      concoursDateIso: row.concoursDateIso,
-      details: row.details ? JSON.parse(row.details) : {},
-      matchReason: row.matchReason,
-      aiRelevant: row.aiRelevant === null ? undefined : Boolean(row.aiRelevant),
-      aiReason: row.aiReason,
-      classificationVersion: row.classificationVersion || undefined,
-      classificationHash: row.classificationHash || undefined,
-      classificationSource: row.classificationSource || undefined,
-      classificationModel: row.classificationModel || undefined,
-      classifiedAt: row.classifiedAt || undefined,
-    }));
+    return results.map((row) => {
+      const r = row as Record<string, unknown>;
+      return {
+        id: String(r.id),
+        wadifaUrl: String(r.wadifaUrl),
+        sourceUrl: typeof r.sourceUrl === 'string' ? r.sourceUrl : null,
+        title: String(r.title),
+        depositDeadlineIso: typeof r.depositDeadlineIso === 'string' ? r.depositDeadlineIso : null,
+        concoursDateIso: typeof r.concoursDateIso === 'string' ? r.concoursDateIso : null,
+        details: typeof r.details === 'string' ? JSON.parse(r.details) : {},
+        matchReason: String(r.matchReason || ''),
+        aiRelevant: r.aiRelevant === null || r.aiRelevant === undefined ? undefined : Boolean(r.aiRelevant),
+        aiReason: typeof r.aiReason === 'string' ? r.aiReason : undefined,
+        classificationVersion: typeof r.classificationVersion === 'string' ? r.classificationVersion : undefined,
+        classificationHash: typeof r.classificationHash === 'string' ? r.classificationHash : undefined,
+        classificationSource: (r.classificationSource === 'rules' || r.classificationSource === 'ai') ? r.classificationSource : undefined,
+        classificationModel: typeof r.classificationModel === 'string' ? r.classificationModel : undefined,
+        classifiedAt: typeof r.classifiedAt === 'string' ? r.classifiedAt : undefined,
+      };
+    });
   } catch (err) {
     console.error('[store] loadAll error', err);
     return [];
