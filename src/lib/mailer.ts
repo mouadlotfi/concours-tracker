@@ -1,4 +1,4 @@
-import { configDefaults, mailEnabled, getAppBaseUrl } from './config';
+import { mailEnabled, getAppBaseUrl } from './config';
 import type { Env } from './config';
 import { createUnsubscribeToken } from './unsubscribe-token';
 import type { MatchedConcours } from './scraper';
@@ -49,7 +49,7 @@ async function sendemail(payload: emailPayload, env: Env): Promise<boolean> {
   }
 
   try {
-    const parsed = raw ? (JSON.parse(raw) as any) : null;
+    const parsed = raw ? (JSON.parse(raw) as { messageId?: unknown }) : null;
     const messageId = parsed?.messageId;
     if (messageId) {
       console.log('[email] send ok', { messageId: String(messageId) });

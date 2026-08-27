@@ -1,4 +1,3 @@
-import { getAppBaseUrl, type Env } from './config';
 import { isoToRfc822 } from './date';
 import type { MatchedConcours } from './scraper';
 

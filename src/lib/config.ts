@@ -1,19 +1,3 @@
-
-
-export function parseIntOr(value: string | undefined, fallback: number): number {
-  if (!value) return fallback;
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-export function parseCsv(value: string | undefined): string[] {
-  if (!value) return [];
-  return value
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
 // Config defaults that don't depend on secrets
 export const configDefaults = {
   baseUrl: 'https://www.wadifa-info.com',
@@ -23,8 +7,6 @@ export const configDefaults = {
   maxPages: 5,
   maxFeedItems: 30,
   cacheSeconds: 3600,
-  keywords: ['developpement', 'informatique', 'informatiques', 'المعلوميات'],
-  excludeKeywords: [],
   appBaseUrl: 'https://cfconcours.mouadlotfi.com',
 };
 

@@ -2,24 +2,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { Env } from './config';
 import { unsubscribeEnabled } from './config';
 
-function b64urlEncode(buf: Uint8Array): string {
-  return Buffer.from(buf)
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
-}
-
-function b64urlDecode(s: string): Uint8Array {
-  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-  const b64 = s.replace(/-/g, '+').replace(/_/g, '/') + pad;
-  return new Uint8Array(Buffer.from(b64, 'base64'));
-}
-
 function sign(payloadB64: string, secret: string): string {
-  const h = createHmac('sha256', secret);
-  h.update(payloadB64);
-  return b64urlEncode(h.digest());
+  return createHmac('sha256', secret).update(payloadB64).digest('base64url');
 }
 
 export function createUnsubscribeToken(email: string, env: Env): string {
@@ -30,7 +14,7 @@ export function createUnsubscribeToken(email: string, env: Env): string {
     email,
     iat: Math.floor(Date.now() / 1000),
   };
-  const payloadB64 = b64urlEncode(Buffer.from(JSON.stringify(payload), 'utf8'));
+  const payloadB64 = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
   const sig = sign(payloadB64, env.UNSUBSCRIBE_SECRET!);
   return `${payloadB64}.${sig}`;
 }
@@ -50,7 +34,7 @@ export function verifyUnsubscribeToken(token: string, env: Env): { ok: true; ema
   if (!timingSafeEqual(a, b)) return { ok: false };
 
   try {
-    const payloadRaw = Buffer.from(b64urlDecode(payloadB64)).toString('utf8');
+    const payloadRaw = Buffer.from(payloadB64, 'base64url').toString('utf8');
     const parsed = JSON.parse(payloadRaw) as { email?: unknown };
     const email = typeof parsed.email === 'string' ? parsed.email.trim() : '';
     if (!email) return { ok: false };

@@ -1,20 +1,20 @@
 import { Hono } from 'hono';
 import { html } from 'hono/html';
+import { z } from 'zod';
 
-import { configDefaults, getAppBaseUrl } from './lib/config';
+import { configDefaults, getAppBaseUrl, mailEnabled, subscribersEnabled } from './lib/config';
 import type { Env } from './lib/config';
 import { loadAll, mergeAndPrune } from './lib/concours-store';
 import { scrapeMatchedConcours } from './lib/scraper';
+import type { MatchedConcours } from './lib/scraper';
 import { buildRss } from './lib/rss';
-
 import { ConcoursList } from './components/ConcoursList';
 import { SubscribeCard } from './components/SubscribeCard';
-import { emailListSubscribers } from './lib/subscriptions';
-import { notifySubscribers } from './lib/mailer';
+import { emailContactExistsInList, emailListSubscribers, emailRemoveContact, emailUpsertContact } from './lib/subscriptions';
+import { notifySubscribers, sendWelcomeEmail } from './lib/mailer';
 import { timer } from './lib/log';
-import type { MatchedConcours } from './lib/scraper';
 import type { StoredClassification } from './lib/classification';
-
+import { verifyUnsubscribeToken } from './lib/unsubscribe-token';
 const app = new Hono<{ Bindings: Env }>();
 
 function buildClassificationMap(items: MatchedConcours[]): Map<string, StoredClassification> {
@@ -36,7 +36,7 @@ function buildClassificationMap(items: MatchedConcours[]): Map<string, StoredCla
 
 // Home Page
 app.get('/', async (c) => {
-  let items: import('./lib/scraper').MatchedConcours[] = [];
+  let items: MatchedConcours[] = [];
   let error = null;
 
   try {
@@ -214,11 +214,6 @@ app.get('/api/refresh', async (c) => {
   }
 });
 
-// Subscription API
-import { z } from 'zod';
-import { emailContactExistsInList, emailUpsertContact } from './lib/subscriptions';
-import { sendWelcomeEmail } from './lib/mailer';
-import { subscribersEnabled, mailEnabled } from './lib/config';
 
 const Schema = z.object({
   email: z.string().trim().email(),
@@ -252,7 +247,7 @@ app.post('/api/subscribe', async (c) => {
       body: verifyForm.toString(),
     });
     
-    const verifyData = await verifyResponse.json() as any;
+    const verifyData = (await verifyResponse.json()) as { success?: boolean };
     if (!verifyData.success) {
       return c.json(
         { ok: false, message: "Échec de la validation du captcha. Veuillez réessayer." },
@@ -309,8 +304,6 @@ app.post('/api/subscribe', async (c) => {
   });
 });
 
-import { verifyUnsubscribeToken } from './lib/unsubscribe-token';
-import { emailRemoveContact } from './lib/subscriptions';
 
 const UnsubscribeSchema = z.object({
   token: z.string().trim().min(1),

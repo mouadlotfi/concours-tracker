@@ -83,14 +83,14 @@ export async function emailListSubscribers(env: Env): Promise<emailContact[]> {
       break;
     }
 
-    let parsed: any = null;
+    let parsed: { contacts?: Array<{ email?: unknown }> } | null = null;
     try {
       parsed = raw ? JSON.parse(raw) : null;
     } catch {
       parsed = null;
     }
 
-    const contacts = Array.isArray(parsed?.contacts) ? (parsed.contacts as any[]) : [];
+    const contacts = Array.isArray(parsed?.contacts) ? parsed.contacts : [];
     for (const c of contacts) {
       const email = typeof c?.email === 'string' ? c.email.trim() : '';
       if (email) out.push({ email });
