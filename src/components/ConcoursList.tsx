@@ -61,7 +61,7 @@ function renderItem(it: MatchedConcours, pinned = false) {
               ${it.title}
             </a>
           </h3>
-          <span class="pill${pinned ? ' pillPinned' : ''}">Date limite de dépôt: ${fmtDate(it.depositDeadlineIso)}</span>
+          <span class="pill pillDeadline">Date limite de dépôt: ${fmtDate(it.depositDeadlineIso)}</span>
         </div>
         <div class="itemMeta">
           <span class="metaGroup">
@@ -111,6 +111,19 @@ function renderItem(it: MatchedConcours, pinned = false) {
   `;
 }
 
+export function compareConcoursDates(
+  aDate: string | null | undefined,
+  bDate: string | null | undefined,
+  direction: 'asc' | 'desc'
+): number {
+  const da = aDate || '';
+  const db = bDate || '';
+  if (!da && !db) return 0;
+  if (!da) return 1;
+  if (!db) return -1;
+  return direction === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+}
+
 export const ConcoursList = ({
   items,
   maxItems,
@@ -127,10 +140,7 @@ export const ConcoursList = ({
 
   return html`
     ${pinnedItems.length ? html`
-      <div class="pinnedBlock" aria-labelledby="pinned-heading">
-        <h3 class="pinnedHeading" id="pinned-heading">
-          ${pinnedItems.length === 1 ? 'Épinglé / prochaine échéance' : 'Épinglés / prochaines échéances'}
-        </h3>
+      <div class="pinnedBlock">
         <div class="list">${pinnedItems.map((item) => renderItem(item, true))}</div>
       </div>
     ` : ''}
@@ -139,10 +149,10 @@ export const ConcoursList = ({
       <div class="sortBar">
         <span class="sortLabel">Trier par</span>
         <button type="button" class="sortBtn sortBtnActive" id="sort-limite" onclick="toggleSort('limite')">
-          Date limite de dépôt
+          Date limite de dépôt<span class="sortArrow" id="sort-limite-arrow"> ↑</span>
         </button>
         <button type="button" class="sortBtn" id="sort-concours" onclick="toggleSort('concours')">
-          Date du concours
+          Date du concours<span class="sortArrow" id="sort-concours-arrow"></span>
         </button>
       </div>
 
@@ -152,43 +162,45 @@ export const ConcoursList = ({
 
       <script>
       let currentSort = 'limite';
+      let currentDir = 'asc';
+
       function toggleSort(key) {
         const container = document.getElementById('concours-container');
         const items = Array.from(container.children);
         
         const btnLimite = document.getElementById('sort-limite');
         const btnConcours = document.getElementById('sort-concours');
-        
+        const arrowLimite = document.getElementById('sort-limite-arrow');
+        const arrowConcours = document.getElementById('sort-concours-arrow');
+
         if (currentSort === key) {
-          return;
+          currentDir = currentDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          currentSort = key;
+          currentDir = 'asc';
         }
-        
-        currentSort = key;
-        if (key === 'limite') {
+
+        if (currentSort === 'limite') {
           btnLimite.classList.add('sortBtnActive');
           btnConcours.classList.remove('sortBtnActive');
-          items.sort((a, b) => {
-            const da = a.dataset.limite;
-            const db = b.dataset.limite;
-            if (!da && !db) return 0;
-            if (!da) return 1;
-            if (!db) return -1;
-            return da.localeCompare(db);
-          });
-        } else if (key === 'concours') {
+          arrowLimite.textContent = currentDir === 'asc' ? ' ↑' : ' ↓';
+          arrowConcours.textContent = '';
+        } else if (currentSort === 'concours') {
           btnConcours.classList.add('sortBtnActive');
           btnLimite.classList.remove('sortBtnActive');
-          items.sort((a, b) => {
-            const da = a.dataset.concours;
-            const db = b.dataset.concours;
-            if (!da && !db) return 0;
-            if (!da) return 1;
-            if (!db) return -1;
-            return da.localeCompare(db);
-          });
+          arrowConcours.textContent = currentDir === 'asc' ? ' ↑' : ' ↓';
+          arrowLimite.textContent = '';
         }
+
+        items.sort((a, b) => {
+          const da = a.dataset[key] || '';
+          const db = b.dataset[key] || '';
+          if (!da && !db) return 0;
+          if (!da) return 1;
+          if (!db) return -1;
+          return currentDir === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
+        });
         
-        // Re-append
         items.forEach(it => container.appendChild(it));
       }
       </script>

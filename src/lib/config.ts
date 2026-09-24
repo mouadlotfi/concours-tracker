@@ -7,7 +7,7 @@ export const configDefaults = {
   maxPages: 5,
   maxFeedItems: 30,
   cacheSeconds: 3600,
-  appBaseUrl: 'https://cfconcours.mouadlotfi.com',
+  appBaseUrl: 'https://concours.mouadlotfi.com',
 };
 
 export interface Env {

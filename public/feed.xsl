@@ -7,11 +7,12 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title><xsl:value-of select="/rss/channel/title"/> — Flux RSS</title>
+  <title><xsl:value-of select="/rss/channel/title"/> — RSS</title>
   <style>
+    @font-face{font-family:'Departure Mono';src:url('/fonts/DepartureMono-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{
-      font-family:-apple-system,system-ui,'Segoe UI',sans-serif;
+      font-family:'Departure Mono',monospace;
       background:#f6f7fb;
       color:#111118;
       line-height:1.5;
@@ -28,7 +29,7 @@
       box-shadow:0 18px 44px rgba(17,17,24,.07);
     }
     .banner-badge{
-      font-family:monospace;
+      font-family:'Departure Mono',monospace;
       font-size:10px;
       letter-spacing:4px;
       text-transform:uppercase;
@@ -67,7 +68,7 @@
       align-items:center;
       gap:12px;
       margin-top:14px;
-      font-family:monospace;
+      font-family:'Departure Mono',monospace;
       font-size:11px;
       color:rgba(17,17,24,.52);
     }
@@ -96,7 +97,7 @@
     .card-title a{color:inherit;text-decoration:none}
     .card-title a:hover{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
     .pill{
-      font-family:monospace;
+      font-family:'Departure Mono',monospace;
       font-size:11px;
       color:rgba(17,17,24,.72);
       background:rgba(79,70,229,.07);
@@ -115,7 +116,7 @@
       color:rgba(17,17,24,.78);
     }
     .mk{
-      font-family:monospace;
+      font-family:'Departure Mono',monospace;
       font-size:10px;
       letter-spacing:1px;
       text-transform:uppercase;
@@ -129,7 +130,7 @@
       margin-top:10px;
     }
     .link-btn{
-      font-family:monospace;
+      font-family:'Departure Mono',monospace;
       font-size:10px;
       letter-spacing:2px;
       text-transform:uppercase;
@@ -145,7 +146,7 @@
     .copy-hint{
       margin-top:28px;
       text-align:center;
-      font-family:monospace;
+      font-family:'Departure Mono',monospace;
       font-size:11px;
       color:rgba(17,17,24,.42);
     }
@@ -165,7 +166,7 @@
 <body>
   <div class="wrap">
     <div class="banner">
-      <div class="banner-badge">Flux RSS</div>
+      <div class="banner-badge">RSS</div>
       <h1><xsl:value-of select="/rss/channel/title"/></h1>
       <p><xsl:value-of select="/rss/channel/description"/></p>
       <div class="meta-bar">

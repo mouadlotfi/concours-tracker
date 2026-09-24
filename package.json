@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "db:seed": "wrangler d1 execute concours-db --local --file=./seeds/dev.sql",
+    "db:reset": "wrangler d1 execute concours-db --local --command \"DELETE FROM concours\"",
     "deploy": "wrangler deploy",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "bun test"

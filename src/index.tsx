@@ -8,7 +8,7 @@ import { loadAll, mergeAndPrune } from './lib/concours-store';
 import { scrapeMatchedConcours } from './lib/scraper';
 import type { MatchedConcours } from './lib/scraper';
 import { buildRss } from './lib/rss';
-import { ConcoursList } from './components/ConcoursList';
+import { ConcoursList, selectPinnedItems } from './components/ConcoursList';
 import { SubscribeCard } from './components/SubscribeCard';
 import { emailContactExistsInList, emailListSubscribers, emailRemoveContact, emailUpsertContact } from './lib/subscriptions';
 import { notifySubscribers, sendWelcomeEmail } from './lib/mailer';
@@ -47,6 +47,10 @@ app.get('/', async (c) => {
     error = e instanceof Error ? e.message : String(e);
   }
 
+  const now = new Date();
+  const hasPinned = items.length > 0
+    && selectPinnedItems(items.slice(0, configDefaults.maxFeedItems), now).length > 0;
+
   return c.html(
     html`
     <!DOCTYPE html>
@@ -62,15 +66,15 @@ app.get('/', async (c) => {
       <body>
         <main class="container">
           <header class="hero">
-            <div class="badge">concours</div>
             <h1 class="title">
               Concours Développement Informatique
+              <img class="titleFlag" src="/morocco-flag.svg" alt="Drapeau du Maroc" width="900" height="600">
             </h1>
           </header>
 
           <section class="section">
             <div class="sectionHead">
-              <h2 class="sectionTitle">Concours en cours</h2>
+              ${hasPinned ? html`<h2 class="pinnedHeading">Épinglés</h2>` : ''}
               <div class="sectionMeta">
                 <a href="/feed.xml">RSS</a>
               </div>
@@ -81,7 +85,7 @@ app.get('/', async (c) => {
                 <span class="dot errDot"></span>
                 Erreur scrape: ${error}
               </div>
-            ` : items.length ? ConcoursList({ items, maxItems: configDefaults.maxFeedItems }) : html`
+            ` : items.length ? ConcoursList({ items, maxItems: configDefaults.maxFeedItems, now }) : html`
               <div class="empty">
                 Aucun concours disponible pour l'instant.
               </div>

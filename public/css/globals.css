@@ -1,35 +1,7 @@
 @font-face {
-  font-family: 'Geist Pixel Square';
-  src: url('/fonts/GeistPixel-Square.woff2') format('woff2');
+  font-family: 'Departure Mono';
+  src: url('/fonts/DepartureMono-Regular.woff2') format('woff2');
   font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Geist Pixel Grid';
-  src: url('/fonts/GeistPixel-Grid.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Geist Mono';
-  src: url('/fonts/GeistMono-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/Geist-Regular.woff2') format('woff2');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/Geist-Light.woff2') format('woff2');
-  font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
@@ -67,8 +39,8 @@ body {
   padding: 42px 20px 96px;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Geist', system-ui, sans-serif;
-  font-weight: 300;
+  font-family: 'Departure Mono', monospace;
+  font-weight: 400;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -85,19 +57,6 @@ body::before {
     linear-gradient(var(--grid-color) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
   background-size: var(--grid-size) var(--grid-size);
-  pointer-events: none;
-  z-index: 0;
-}
-
-body::after {
-  content: '';
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  width: 720px;
-  height: 720px;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle, var(--accent-glow) 0%, transparent 62%);
   pointer-events: none;
   z-index: 0;
 }

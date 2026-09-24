@@ -10,7 +10,7 @@
 }
 
 .kws {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 12px;
   color: rgba(17, 17, 24, 0.75);
 }
@@ -28,7 +28,7 @@
 }
 
 .sectionTitle {
-  font-family: 'Geist Pixel Square', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 13px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -37,9 +37,10 @@
 }
 
 .sectionMeta {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 11px;
   color: var(--text-dim);
+  margin-left: auto;
 }
 
 .sectionMeta a {
@@ -67,7 +68,7 @@
 }
 
 .sortLabel {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 10px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -76,14 +77,14 @@
 }
 
 .sortBtn {
-  font-family: 'Geist Pixel Square', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: rgba(17, 17, 24, 0.62);
   background: transparent;
   border: 1px solid rgba(16, 16, 24, 0.14);
-  border-radius: 999px;
+  border-radius: 0;
   padding: 6px 12px;
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
@@ -118,9 +119,9 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 0 0 26px;
+  margin: 0;
   color: var(--accent);
-  font-family: 'Geist Pixel Square', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 11px;
   font-weight: 400;
   letter-spacing: 2px;
@@ -138,44 +139,20 @@
 .item {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 16px 16px;
   box-shadow: 0 18px 44px rgba(17, 17, 24, 0.07);
 }
 
 .itemPinned {
   position: relative;
-  border: 1px solid transparent;
-  background:
-    linear-gradient(var(--surface), var(--surface)) padding-box,
-    linear-gradient(90deg, rgba(79, 70, 229, 0.10), rgba(79, 70, 229, 0.95), rgba(79, 70, 229, 0.18), rgba(67, 56, 202, 0.92), rgba(79, 70, 229, 0.10)) border-box;
-  background-size: 100% 100%, 240% 100%;
-  box-shadow: 0 0 0 3px var(--accent-glow), 0 18px 44px rgba(17, 17, 24, 0.07);
-  animation: border-shift 1.9s ease-in-out infinite alternate;
-}
-
-.itemPinned .pillPinned {
-  border-color: transparent;
-  background:
-    linear-gradient(rgba(79, 70, 229, 0.07), rgba(79, 70, 229, 0.07)) padding-box,
-    linear-gradient(90deg, rgba(79, 70, 229, 0.10), rgba(79, 70, 229, 0.95), rgba(79, 70, 229, 0.18), rgba(67, 56, 202, 0.92), rgba(79, 70, 229, 0.10)) border-box;
-  background-size: 100% 100%, 240% 100%;
-  animation: border-shift 1.9s ease-in-out infinite alternate;
-}
-
-.itemPinned::after {
-  content: '📌';
-  position: absolute;
-  top: -12px;
-  right: -8px;
-  font-size: 18px;
-  line-height: 1;
-  transform: rotate(18deg);
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  box-shadow: 0 18px 44px rgba(17, 17, 24, 0.07);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .itemPinned,
-  .pillPinned {
+  .pillDeadline::before {
     animation: none;
   }
 }
@@ -198,6 +175,7 @@
   font-size: 15px;
   line-height: 1.3;
   font-weight: 400;
+  text-transform: uppercase;
   color: rgba(17, 17, 24, 0.92);
 }
 
@@ -213,15 +191,80 @@
 }
 
 .pill {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 11px;
   color: rgba(17, 17, 24, 0.72);
   background: rgba(79, 70, 229, 0.07);
   border: 1px solid rgba(79, 70, 229, 0.16);
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+/* Deadline pill outline; its ring animates only on pinned cards. */
+@property --shiny-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes shiny-rotate {
+  to {
+    --shiny-angle: 360deg;
+  }
+}
+
+.pillDeadline {
+  position: relative;
+  border: 1px solid transparent;
+  background: transparent;
+  color: rgba(17, 17, 24, 0.82);
+  transition: box-shadow 0.25s ease;
+}
+
+.pillDeadline::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--shiny-angle),
+    rgba(79, 70, 229, 0.5),
+    rgba(79, 70, 229, 1),
+    rgba(79, 70, 229, 0.55),
+    rgba(67, 56, 202, 1),
+    rgba(79, 70, 229, 0.5)
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.itemPinned .pillDeadline::before {
+  background: conic-gradient(
+    from var(--shiny-angle),
+    #0a0a0a,
+    #ffffff,
+    #8a8a8a,
+    #ffffff,
+    #1c1c1c,
+    #dcdcdc,
+    #e11d2e,
+    #dcdcdc,
+    #1c1c1c,
+    #ffffff,
+    #8a8a8a,
+    #ffffff,
+    #0a0a0a
+  );
+  animation: shiny-rotate 4s linear infinite;
+}
+
+.itemPinned .pillDeadline:hover {
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .itemMeta {
@@ -241,7 +284,7 @@
 }
 
 .metaKey {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 10px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -249,8 +292,8 @@
 }
 
 .metaVal {
-  font-family: 'Geist', system-ui, sans-serif;
-  font-weight: 300;
+  font-family: 'Departure Mono', monospace;
+  font-weight: 400;
 }
 
 .metaSep {
@@ -266,14 +309,14 @@
 }
 
 .linkBtn {
-  font-family: 'Geist Pixel Square', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 10px;
   letter-spacing: 2px;
   text-transform: uppercase;
   text-decoration: none;
   color: rgba(17, 17, 24, 0.78);
   border: 1px solid rgba(16, 16, 24, 0.14);
-  border-radius: 999px;
+  border-radius: 0;
   padding: 8px 12px;
   background: rgba(17, 17, 24, 0.02);
   transition: border-color 0.2s ease, transform 0.12s ease;
@@ -295,7 +338,7 @@
 
 .summary {
   cursor: pointer;
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 11px;
   color: var(--text-dim);
   list-style: none;
@@ -330,7 +373,7 @@
 }
 
 .detailK {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 11px;
   color: rgba(17, 17, 24, 0.62);
 }
@@ -341,51 +384,30 @@
 }
 
 .empty {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 12px;
   color: var(--text-dim);
   padding: 12px 2px;
 }
 
-.badge {
-  font-family: 'Geist Pixel Square', monospace;
-  font-size: 10px;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.badge::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  background: var(--accent);
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-@keyframes pulse-dot {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
 .title {
-  font-family: 'Geist Pixel Grid', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: clamp(28px, 6vw, 38px);
   font-weight: 400;
+  text-transform: uppercase;
   color: #121224;
   line-height: 1.2;
   margin-bottom: 12px;
   letter-spacing: -0.5px;
+}
+
+.titleFlag {
+  display: inline-block;
+  width: auto;
+  height: 0.78em;
+  margin-left: 0.35em;
+  vertical-align: -0.04em;
+  border: 1px solid var(--border);
 }
 
 .subtitle {
@@ -399,7 +421,7 @@
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 28px 24px;
   position: relative;
   overflow: hidden;
@@ -444,7 +466,7 @@
 }
 
 .label {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 2px;
@@ -457,7 +479,7 @@
   display: flex;
   gap: 0;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 0;
   overflow: hidden;
   background: rgba(17, 17, 24, 0.015);
   transition: border-color 0.2s ease;
@@ -468,7 +490,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 6px;
+  border-radius: 0;
   padding: 1px;
   background: linear-gradient(
     90deg,
@@ -512,7 +534,7 @@
   border: none;
   padding: 14px 16px;
   color: var(--text);
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 13px;
   outline: none;
   min-width: 0;
@@ -530,7 +552,7 @@
   border: none;
   padding: 14px 20px;
   color: #fff;
-  font-family: 'Geist Pixel Square', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 11px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -581,7 +603,7 @@
 }
 
 .statusMsg {
-  font-family: 'Geist Mono', monospace;
+  font-family: 'Departure Mono', monospace;
   font-size: 11px;
   letter-spacing: 0.5px;
   display: flex;
