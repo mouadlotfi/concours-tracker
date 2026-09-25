@@ -4,147 +4,198 @@
 
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-f38020?style=flat-square&logo=cloudflare)](https://workers.cloudflare.com/)
 [![Hono](https://img.shields.io/badge/Hono-Framework-e36002?style=flat-square)](https://hono.dev/)
-[![React](https://img.shields.io/badge/React-UI-61dafb?style=flat-square&logo=react)](https://reactjs.org/)
+[![Cloudflare D1](https://img.shields.io/badge/Cloudflare-D1-f38020?style=flat-square&logo=cloudflare)](https://developers.cloudflare.com/d1/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 :star: If you find this project helpful, please consider starring it on GitHub!
 
-[Overview](#overview) • [Features](#features) • [Architecture](#architecture) • [Getting Started](#getting-started) • [Deployment](#deployment)
+[Overview](#overview) • [Features](#features) • [Architecture](#architecture) • [Getting Started](#getting-started) • [Email Flows](#email-flows) • [Deployment](#deployment)
+
+<img src="public/screenshot.png" alt="Concours Tracker homepage listing Moroccan public-sector IT concours" width="900">
 
 </div>
 
 ## Overview
 
-**Concours Tracker** is a fully serverless application designed to monitor the Moroccan public sector job portal (`emploi-public.ma`), intelligently filter for specific IT and Software Development roles using AI, and distribute these opportunities to subscribers via Email and RSS.
+**Concours Tracker** watches the Moroccan public-sector recruitment portal (`emploi-public.ma`, indexed via `wadifa-info.com`), keeps only the software and web development roles, and distributes them by email and RSS.
 
-Built entirely on the Edge using Cloudflare Workers, Hono, and D1, the application requires zero traditional server infrastructure and scales infinitely.
+It runs entirely on Cloudflare Workers with D1, so there is no server to manage.
 
 ## Features
 
-- **Serverless Architecture**: Runs entirely on Cloudflare Workers edge network.
-- **AI-Powered Filtering**: Uses OpenRouter AI to semantically understand job postings and filter strictly for relevant IT/Software Development positions, bypassing unreliable keyword matching.
-- **Automated Scraping**: Periodically scrapes the public job board using Cloudflare Cron Triggers.
-- **Email Subscriptions**: Integrated with email (Sendinblue) to automatically send HTML email notifications to subscribers when new jobs are detected.
-- **RSS Feed Generation**: Exposes a standard XML RSS feed for easy integration with feed readers and automation tools.
-- **Bot Protection**: Subscription forms are protected by Cloudflare Turnstile CAPTCHA.
+- **Serverless**: Cloudflare Workers, D1, and Cron Triggers only.
+- **Hybrid classification**: deterministic French/Arabic rules first, AI (OpenRouter with PDF parsing) for ambiguous listings, with a guardrail that requires cited evidence.
+- **Automated scraping**: an every-5-hours cron refreshes listings; expired deadlines are pruned.
+- **Double opt-in subscriptions**: an address is only added to the mailing list after the recipient clicks a confirmation link.
+- **Scheduled notifications**: digests are held and sent at fixed local times, so nobody is emailed at 01:00.
+- **RSS feed** plus a server-rendered web UI.
+- **Bot protection**: Cloudflare Turnstile on the subscribe form.
 
 ## Architecture
 
-This project is built using modern edge technologies:
+The worker has two entry points: a Hono `fetch` handler (web UI, RSS, and API routes) and a `scheduled` handler (crons).
 
-- **Hono API**: Lightweight, ultra-fast web framework tailored for edge networks.
-- **Cloudflare D1**: Serverless SQL database built on SQLite to persistently store job postings and AI filtering states.
-- **Cloudflare Workers Cron Triggers**: Scheduled background tasks to perform periodic scraping and email dispatching.
-- **React (JSX) & Vite**: Renders the frontend interface server-side using Hono's JSX features.
+```
+Cron "0 */5 * * *"  ──► scrape ──► classify (rules → AI) ──► merge & prune (D1)
+Cron "0 * * * *"    ──► notification pass (only during NOTIFY_HOURS)
+                                 │
+GET /api/refresh  ───────────────┘
+                                 ▼
+                       Brevo (prod) / Mailpit (dev)
+```
+
+Stack:
+
+- **Hono** — routing and server-rendered JSX (`hono/html`); no browser framework.
+- **Cloudflare D1** — SQLite persistence for listings.
+- **Cron Triggers** — scheduled scraping and notification passes.
+- **Cheerio** — HTML scraping. **Zod** — request validation.
+- **Brevo** — email delivery and mailing-list storage. **OpenRouter** — AI classification.
 
 ## Getting Started
 
 ### Prerequisites
 
-You need the following tools installed locally:
-
-- [Bun](https://bun.sh/) (or Node.js >= 18)
+- [Bun](https://bun.sh/) (runtime, package manager, test runner)
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
-
-You will also need API keys for:
-- [OpenRouter](https://openrouter.ai/) (for AI filtering)
-- [SMTP (e.g. Brevo)](https://app.brevo.com/) (for email distribution)
-- [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) (for CAPTCHA)
+- Optional: Docker (for Mailpit), plus accounts with [Brevo](https://app.brevo.com/), [OpenRouter](https://openrouter.ai/) and [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/)
 
 ### Installation
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/mouadlotfi/concours-tracker.git
-   cd concours-tracker
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   bun install
-   ```
-
-3. **Configure environment variables:**
-   Create a `.dev.vars` file in the root directory with the following keys:
-   ```env
-   APP_BASE_URL="http://127.0.0.1:8787"
-   SMTP_API_KEY="your-email-key"
-   SMTP_SENDER_EMAIL="your-sender-email"
-   SMTP_LIST_ID="your-email-list-id"
-   SMTP_SENDER_NAME="Concours Tracker"
-   CRON_SECRET="your-secure-secret"
-   UNSUBSCRIBE_SECRET="your-unsubscribe-secret"
-   NEXT_PUBLIC_TURNSTILE_SITE_KEY="1x00000000000000000000AA" # Local testing key
-   TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA" # Local testing secret
-   OPENROUTER_API_KEY="your-openrouter-key"
-   OPENROUTER_MODEL="openrouter/free"
-   ```
-
-4. **Initialize local database:**
-   ```bash
-   bunx wrangler d1 execute concours-db --local --file=schema.sql
-   ```
-
-5. **Run the local development server:**
-   ```bash
-   bunx wrangler dev
-   ```
-
-### Local Testing
-
-To manually trigger the scraping and AI-filtering logic in your local environment, run:
-
 ```bash
-curl "http://127.0.0.1:8787/api/refresh?secret=your-secure-secret&force_email=true"
-```
-*(The `force_email` flag ensures that a test email is sent to your configured `TEST_EMAIL` address regardless of whether the jobs are new or not).*
-
-To exercise the complete scraper and classifier without changing D1 or sending email, use:
-
-```bash
-curl "http://127.0.0.1:8787/api/refresh?secret=your-secure-secret&reclassify=true&dry_run=true"
+git clone https://github.com/mouadlotfi/concours-tracker.git
+cd concours-tracker
+bun install
 ```
 
-Use `notify=false` without `dry_run=true` when you want to persist the refreshed classifications but suppress email.
+### Configure the local environment
 
-Generic IT listings are not rejected from their summary alone. The classifier follows the official Emploi Public page, attaches its decision PDF (including scanned PDFs) for ambiguous listings, and explicitly uses OpenRouter's free `cloudflare-ai` PDF parser with the `openrouter/free` router. PDFs are capped at 3 MB and AI requests are batched in pairs.
+```bash
+cp .env.dev.example .env.dev
+```
+
+`.env.dev` is gitignored and is loaded by `bun run dev` (`wrangler dev --env-file .env.dev`). Every variable is documented in [`.env.example`](.env.example).
+
+For local email testing, start [Mailpit](https://mailpit.axllent.org/) and read captured mail at <http://127.0.0.1:8025>:
+
+```bash
+docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+With `MAILPIT_URL` set, every outgoing email goes to Mailpit and Brevo is never contacted, so no real address can be emailed during development.
+
+### Initialize the local database
+
+```bash
+bunx wrangler d1 execute concours-db --local --file=schema.sql
+```
+
+### Run
+
+```bash
+bun run dev          # http://127.0.0.1:8787
+```
+
+### Local testing
+
+Exercise the scrape and classification pipeline without writing or emailing:
+
+```bash
+curl "http://127.0.0.1:8787/api/refresh?dry_run=true&reclassify=true"
+```
+
+Send a test notification to `TEST_EMAIL` (bypasses the notification window):
+
+```bash
+curl "http://127.0.0.1:8787/api/refresh?force_email=true"
+```
+
+Append `&secret=<CRON_SECRET>` when `CRON_SECRET` is configured. Use `notify=false` to persist refreshed classifications without sending anything.
+
+### Commands
+
+| Command | Purpose |
+|---|---|
+| `bun run dev` | Local worker, loading `.env.dev` |
+| `bun test` | Test suite |
+| `bun run lint` | Typecheck (`tsc --noEmit`) |
+| `bun run db:seed` | Load `seeds/dev.sql` into local D1 |
+| `bun run db:reset` | Delete all local listings |
+| `bun run deploy` | Deploy to Cloudflare |
+
+## Email Flows
+
+Three emails are sent, all rendered from the site's design tokens:
+
+1. **Confirmation** (`sendConfirmEmail`) — on `POST /api/subscribe`. Contains a signed, 48-hour link to `/confirm`.
+2. **Welcome** (`sendWelcomeEmail`) — after the link is confirmed. Only at this point is the address added to the Brevo list.
+3. **New listings** (`notifySubscribers`) — one digest per notification slot, nearest deadline first.
+
+Subscription is double opt-in: `POST /api/subscribe` never writes to the mailing list, `POST /api/confirm` does. The subscribe endpoint returns the same response whether or not an address is already subscribed, so it cannot be used to probe list membership.
+
+Unsubscribe uses a stateless HMAC link (`/unsubscribe` → `POST /api/unsubscribe`).
+
+### Notification schedule
+
+Listings are collected continuously but emailed only during the local hours listed in `NOTIFY_HOURS`, interpreted in `NOTIFY_TIMEZONE` (defaults `8,18` and `Africa/Casablanca`, set in `wrangler.toml`):
+
+- The hourly cron decides whether to send; the every-5-hours cron scrapes.
+- Outside the window, pending listings are held and sent at the next slot.
+- A listing is marked notified only after a successful send, so a failed delivery is retried rather than lost.
+- A manual `GET /api/refresh` flushes pending listings immediately, outside the window.
+
+Because the timezone is an IANA name, Morocco's UTC offset changes (including the Ramadan suspension) are applied automatically.
 
 ## Deployment
 
-Deploying the application to production requires linking your project to Cloudflare and provisioning the necessary resources.
+1. **Authenticate:**
 
-1. **Authenticate Wrangler:**
    ```bash
    bunx wrangler login
    ```
 
-2. **Create Production D1 Database:**
+2. **Create the production database** (first deploy only) and copy the generated `database_id` into `wrangler.toml`:
+
    ```bash
    bunx wrangler d1 create concours-db
    ```
-   *Update your `wrangler.toml` with the generated `database_id`.*
 
-3. **Initialize Production Database:**
+3. **Initialize the schema** (first deploy only).
+
+   > `schema.sql` drops and recreates its tables. Run it only against a new, empty database.
+
    ```bash
    bunx wrangler d1 execute concours-db --remote --file=schema.sql
    ```
 
-   For an existing database, apply the checked-in migrations instead:
+   For a database that already has data, apply the notification-schedule column instead. **The backfill is required**: without it, the first notification pass emails every existing listing at once.
+
    ```bash
-   bunx wrangler d1 migrations apply concours-db --remote
+   bunx wrangler d1 execute concours-db --remote --command \
+     "ALTER TABLE concours ADD COLUMN notifiedAt DATETIME; UPDATE concours SET notifiedAt = CURRENT_TIMESTAMP WHERE notifiedAt IS NULL;"
    ```
 
-4. **Set Production Secrets:**
-   You must securely upload all `.dev.vars` secrets into your production Cloudflare Worker using:
+   If the database tracks migrations (`SELECT name FROM d1_migrations` returns rows), use `bunx wrangler d1 migrations apply concours-db --remote` instead.
+
+4. **Set secrets** (see [`.env.example`](.env.example)):
+
    ```bash
+   bunx wrangler secret put SMTP_API_KEY
+   bunx wrangler secret put SMTP_SENDER_EMAIL
+   bunx wrangler secret put SMTP_LIST_ID
+   bunx wrangler secret put UNSUBSCRIBE_SECRET
+   bunx wrangler secret put SUBSCRIBE_CONFIRM_SECRET   # optional; falls back to UNSUBSCRIBE_SECRET
+   bunx wrangler secret put CRON_SECRET
    bunx wrangler secret put OPENROUTER_API_KEY
-   # Repeat for all other secrets...
+   bunx wrangler secret put NEXT_PUBLIC_TURNSTILE_SITE_KEY
+   bunx wrangler secret put TURNSTILE_SECRET_KEY
    ```
 
 5. **Deploy:**
+
    ```bash
-   bunx wrangler deploy
+   bun run deploy
    ```
 
 ## License
