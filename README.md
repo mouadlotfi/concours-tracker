@@ -20,15 +20,15 @@
 
 **Concours Tracker** watches the Moroccan public-sector recruitment portal (`emploi-public.ma`, indexed via `wadifa-info.com`), keeps only the software and web development roles, and distributes them by email and RSS.
 
-It runs entirely on Cloudflare Workers with D1, so there is no server to manage.
+It runs entirely on Cloudflare Workers with D1.
 
 ## Features
 
-- **Serverless**: Cloudflare Workers, D1, and Cron Triggers only.
+- **Serverless**: Cloudflare Workers, D1, and Cron Triggers.
 - **Hybrid classification**: deterministic French/Arabic rules first, AI (OpenRouter with PDF parsing) for ambiguous listings, with a guardrail that requires cited evidence.
 - **Automated scraping**: an every-5-hours cron refreshes listings; expired deadlines are pruned.
 - **Double opt-in subscriptions**: an address is only added to the mailing list after the recipient clicks a confirmation link.
-- **Scheduled notifications**: digests are held and sent at fixed local times, so nobody is emailed at 01:00.
+- **Scheduled notifications**: digests are sent only during configured local hours.
 - **RSS feed** plus a server-rendered web UI.
 - **Bot protection**: Cloudflare Turnstile on the subscribe form.
 
@@ -47,11 +47,13 @@ GET /api/refresh  ───────────────┘
 
 Stack:
 
-- **Hono** — routing and server-rendered JSX (`hono/html`); no browser framework.
+- **Hono** — routing and server-rendered JSX (`hono/html`).
 - **Cloudflare D1** — SQLite persistence for listings.
 - **Cron Triggers** — scheduled scraping and notification passes.
-- **Cheerio** — HTML scraping. **Zod** — request validation.
-- **Brevo** — email delivery and mailing-list storage. **OpenRouter** — AI classification.
+- **Cheerio** — HTML scraping.
+- **Zod** — request validation.
+- **Brevo** — email delivery and mailing-list storage.
+- **OpenRouter** — AI classification.
 
 ## Getting Started
 
@@ -80,10 +82,12 @@ cp .env.dev.example .env.dev
 For local email testing, start [Mailpit](https://mailpit.axllent.org/) and read captured mail at <http://127.0.0.1:8025>:
 
 ```bash
-docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit
+docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit   # Docker
+brew install mailpit && mailpit                             # Homebrew
+sudo sh < <(curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh) && mailpit   # script (Linux & macOS)
 ```
 
-With `MAILPIT_URL` set, every outgoing email goes to Mailpit and Brevo is never contacted, so no real address can be emailed during development.
+With `MAILPIT_URL` set, outgoing email goes to Mailpit instead of Brevo.
 
 ### Initialize the local database
 
@@ -99,19 +103,21 @@ bun run dev          # http://127.0.0.1:8787
 
 ### Local testing
 
+`CRON_SECRET` is required — `/api/refresh` returns 401 without a matching `secret`.
+
 Exercise the scrape and classification pipeline without writing or emailing:
 
 ```bash
-curl "http://127.0.0.1:8787/api/refresh?dry_run=true&reclassify=true"
+curl "http://127.0.0.1:8787/api/refresh?secret=dev-cron-secret&dry_run=true&reclassify=true"
 ```
 
 Send a test notification to `TEST_EMAIL` (bypasses the notification window):
 
 ```bash
-curl "http://127.0.0.1:8787/api/refresh?force_email=true"
+curl "http://127.0.0.1:8787/api/refresh?secret=dev-cron-secret&force_email=true"
 ```
 
-Append `&secret=<CRON_SECRET>` when `CRON_SECRET` is configured. Use `notify=false` to persist refreshed classifications without sending anything.
+Use `notify=false` to persist refreshed classifications without sending anything.
 
 ### Commands
 
@@ -126,13 +132,13 @@ Append `&secret=<CRON_SECRET>` when `CRON_SECRET` is configured. Use `notify=fal
 
 ## Email Flows
 
-Three emails are sent, all rendered from the site's design tokens:
+Three emails are sent:
 
 1. **Confirmation** (`sendConfirmEmail`) — on `POST /api/subscribe`. Contains a signed, 48-hour link to `/confirm`.
 2. **Welcome** (`sendWelcomeEmail`) — after the link is confirmed. Only at this point is the address added to the Brevo list.
 3. **New listings** (`notifySubscribers`) — one digest per notification slot, nearest deadline first.
 
-Subscription is double opt-in: `POST /api/subscribe` never writes to the mailing list, `POST /api/confirm` does. The subscribe endpoint returns the same response whether or not an address is already subscribed, so it cannot be used to probe list membership.
+Subscription is double opt-in: `POST /api/subscribe` never writes to the mailing list, `POST /api/confirm` does. The subscribe endpoint returns the same response either way, so it cannot be used to probe list membership.
 
 Unsubscribe uses a stateless HMAC link (`/unsubscribe` → `POST /api/unsubscribe`).
 
@@ -144,8 +150,6 @@ Listings are collected continuously but emailed only during the local hours list
 - Outside the window, pending listings are held and sent at the next slot.
 - A listing is marked notified only after a successful send, so a failed delivery is retried rather than lost.
 - A manual `GET /api/refresh` flushes pending listings immediately, outside the window.
-
-Because the timezone is an IANA name, Morocco's UTC offset changes (including the Ramadan suspension) are applied automatically.
 
 ## Deployment
 

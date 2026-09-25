@@ -15,16 +15,20 @@ database_id = "54db175f-a5ba-40e1-80f3-010e1e42a1d8"
 migrations_dir = "migrations"
 
 [triggers]
-# Run every 5 hours
-crons = ["0 */5 * * *"]
+# Every 5 hours: scrape and merge fresh listings.
+# Hourly: notification pass. Sends only during NOTIFY_HOURS in NOTIFY_TIMEZONE.
+crons = ["0 */5 * * *", "0 * * * *"]
 
 [assets]
 directory = "./public"
 
 [vars]
 # You can set vars here, secrets should be set via `wrangler secret put`
-# For local dev, put secrets in .dev.vars
+# For local dev, put secrets in .env.dev (see .env.dev.example)
 OPENROUTER_MODEL = "openrouter/free"
+# Local slots (hours) during which notification emails may be sent.
+NOTIFY_HOURS = "8,18"
+NOTIFY_TIMEZONE = "Africa/Casablanca"
 
 [observability]
 enabled = true

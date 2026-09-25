@@ -119,7 +119,7 @@ export const SubscribeCard = ({ siteKey }: { siteKey?: string }) => {
             const data = await res.json().catch(function() { return {}; });
 
             if (res.ok) {
-              showStatus('ok', data.message || 'Abonnement confirme.');
+              showStatus('ok', data.message || 'Vérifiez votre boîte mail pour confirmer votre abonnement.');
               emailInput.value = '';
             } else {
               showStatus('err', data.detail || data.message || 'Erreur.');

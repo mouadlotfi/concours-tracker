@@ -32,6 +32,7 @@ export function mergeConcours(
   return {
     ...fresh,
     sourceUrl: fresh.sourceUrl || existing?.sourceUrl || null,
+    notifiedAt: fresh.notifiedAt ?? existing?.notifiedAt,
     depositDeadlineIso: fresh.depositDeadlineIso || existing?.depositDeadlineIso
       || (deadline ? endOfDayIsoUtc(deadline) : null),
     concoursDateIso: fresh.concoursDateIso || existing?.concoursDateIso
@@ -66,6 +67,7 @@ export async function loadAll(env: Env): Promise<MatchedConcours[]> {
         classificationSource: (r.classificationSource === 'rules' || r.classificationSource === 'ai') ? r.classificationSource : undefined,
         classificationModel: typeof r.classificationModel === 'string' ? r.classificationModel : undefined,
         classifiedAt: typeof r.classifiedAt === 'string' ? r.classifiedAt : undefined,
+        notifiedAt: typeof r.notifiedAt === 'string' ? r.notifiedAt : undefined,
       };
     });
   } catch (err) {
@@ -143,8 +145,8 @@ export async function mergeAndPrune(
           `INSERT INTO concours (
              id, title, wadifaUrl, sourceUrl, depositDeadlineIso, concoursDateIso, details,
              matchReason, aiRelevant, aiReason, classificationVersion, classificationHash,
-             classificationSource, classificationModel, classifiedAt
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             classificationSource, classificationModel, classifiedAt, notifiedAt
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           item.id,
           item.title,
@@ -160,7 +162,8 @@ export async function mergeAndPrune(
           item.classificationHash || null,
           item.classificationSource || null,
           item.classificationModel || null,
-          item.classifiedAt || null
+          item.classifiedAt || null,
+          item.notifiedAt || null
         )
       );
     }
@@ -171,4 +174,21 @@ export async function mergeAndPrune(
   }
 
   return { all, newItems };
+}
+
+/**
+ * Mark listings as notified. Called only after a successful send so that a
+ * failed delivery is retried at the next notification slot.
+ */
+export async function markNotified(ids: string[], env: Env, at: Date = new Date()): Promise<void> {
+  if (!ids.length) return;
+  try {
+    await env.DB.batch(
+      ids.map((id) =>
+        env.DB.prepare('UPDATE concours SET notifiedAt = ? WHERE id = ?').bind(at.toISOString(), id)
+      )
+    );
+  } catch (err) {
+    console.error('[store] markNotified error', err);
+  }
 }

@@ -26,6 +26,7 @@ CREATE TABLE concours (
   classificationSource TEXT,
   classificationModel TEXT,
   classifiedAt DATETIME,
+  notifiedAt DATETIME,
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

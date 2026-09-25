@@ -54,6 +54,7 @@ export type MatchedConcours = {
   classificationContext?: string;
   classificationDocumentUrl?: string;
   classificationDocumentDataUrl?: string;
+  notifiedAt?: string;
   depositDeadlineIso: string | null;
   concoursDateIso: string | null;
   details: Record<string, string>;
