@@ -18,50 +18,51 @@
 
 ## Overview
 
-**Concours Tracker** watches the Moroccan public-sector recruitment portal (`emploi-public.ma`, indexed via `wadifa-info.com`), keeps only the software and web development roles, and distributes them by email and RSS.
+**Concours Tracker** checks Moroccan public-sector job listings on `wadifa-info.com`, keeps software and web development roles, and shares them on the website, by email, and through RSS.
 
-It runs entirely on Cloudflare Workers with D1.
+The app runs on Cloudflare Workers and stores listings in D1.
 
 ## Features
 
-- **Serverless**: Cloudflare Workers, D1, and Cron Triggers.
-- **Hybrid classification**: deterministic French/Arabic rules first, AI (OpenRouter with PDF parsing) for ambiguous listings, with a guardrail that requires cited evidence.
-- **Automated scraping**: an every-5-hours cron refreshes listings; expired deadlines are pruned.
-- **Double opt-in subscriptions**: an address is only added to the mailing list after the recipient clicks a confirmation link.
-- **Scheduled notifications**: digests are sent only during configured local hours.
-- **RSS feed** plus a server-rendered web UI.
-- **Bot protection**: Cloudflare Turnstile on the subscribe form.
+- **Cloudflare Workers and D1** run the app and store listings.
+- **French and Arabic classification rules** filter listings first. OpenRouter with PDF parsing reviews ambiguous cases, and a guardrail requires evidence from the listing or its official document.
+- **Scheduled scraping** refreshes listings every five hours and removes expired competitions.
+- **Double opt-in subscriptions** add an address to the mailing list only after its owner confirms by email.
+- **Email digests** go out during configured local hours.
+- **Website and RSS feed** show relevant listings.
+- **Cloudflare Turnstile** protects the subscription form from bots.
 
 ## Architecture
 
-The worker has two entry points: a Hono `fetch` handler (web UI, RSS, and API routes) and a `scheduled` handler (crons).
+The worker has two entry points. Hono's `fetch` handler serves the website, RSS feed, and API routes. The `scheduled` handler runs the cron jobs.
 
 ```
-Cron "0 */5 * * *"  ──► scrape ──► classify (rules → AI) ──► merge & prune (D1)
-Cron "0 * * * *"    ──► notification pass (only during NOTIFY_HOURS)
+Cron "0 */5 * * *"  ──► scrape ──► classify (rules, then AI if needed) ──► save listings (D1)
+Cron "0 * * * *"    ──► check for unclaimed listings (only during NOTIFY_HOURS)
                                  │
 GET /api/refresh  ───────────────┘
                                  ▼
-                       Brevo (prod) / Mailpit (dev)
+                      email: Brevo or local Mailpit
 ```
 
-Stack:
+Main dependencies:
 
-- **Hono** — routing and server-rendered JSX (`hono/html`).
-- **Cloudflare D1** — SQLite persistence for listings.
-- **Cron Triggers** — scheduled scraping and notification passes.
-- **Cheerio** — HTML scraping.
-- **Zod** — request validation.
-- **Brevo** — email delivery and mailing-list storage.
-- **OpenRouter** — AI classification.
+- **Hono** handles routes and server-rendered HTML.
+- **Cloudflare D1** stores listings in SQLite.
+- **Cron Triggers** run scraping and notification checks.
+- **Cheerio** parses listing pages.
+- **Zod** validates request data.
+- **Brevo** delivers email and stores the mailing list.
+- **OpenRouter** classifies ambiguous listings.
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (runtime, package manager, test runner)
+- [Bun](https://bun.sh/) for development, package management, and tests
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
-- Optional: Docker (for Mailpit), plus accounts with [Brevo](https://app.brevo.com/), [OpenRouter](https://openrouter.ai/) and [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/)
+- Optional for local email capture: Docker and Mailpit
+- For production email and classification: [Brevo](https://app.brevo.com/), [OpenRouter](https://openrouter.ai/), and [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) accounts
 
 ### Installation
 
@@ -77,9 +78,9 @@ bun install
 cp .env.dev.example .env.dev
 ```
 
-`.env.dev` is gitignored and is loaded by `bun run dev` (`wrangler dev --env-file .env.dev`). Every variable is documented in [`.env.example`](.env.example).
+`.env.dev` is gitignored. `bun run dev` loads it through `wrangler dev --env-file .env.dev`. See [`.env.example`](.env.example) for variable descriptions.
 
-For local email testing, start [Mailpit](https://mailpit.axllent.org/) and read captured mail at <http://127.0.0.1:8025>:
+To test email without contacting subscribers, run [Mailpit](https://mailpit.axllent.org/). It captures outgoing messages in a local inbox at <http://127.0.0.1:8025>:
 
 ```bash
 docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit   # Docker
@@ -87,7 +88,7 @@ brew install mailpit && mailpit                             # Homebrew
 sudo sh < <(curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/install.sh) && mailpit   # script (Linux & macOS)
 ```
 
-With `MAILPIT_URL` set, outgoing email goes to Mailpit instead of Brevo.
+The example `.env.dev` sets `MAILPIT_URL`, so the local worker sends mail to Mailpit instead of Brevo.
 
 ### Initialize the local database
 
@@ -95,7 +96,7 @@ With `MAILPIT_URL` set, outgoing email goes to Mailpit instead of Brevo.
 bunx wrangler d1 execute concours-db --local --file=schema.sql
 ```
 
-### Run
+### Start the local app
 
 ```bash
 bun run dev          # http://127.0.0.1:8787
@@ -103,69 +104,76 @@ bun run dev          # http://127.0.0.1:8787
 
 ### Local testing
 
-`CRON_SECRET` is required — `/api/refresh` returns 401 without a matching `secret`.
+The example `.env.dev` sets `CRON_SECRET`. `/api/refresh` returns 401 unless the request includes the matching `secret`.
 
-Exercise the scrape and classification pipeline without writing or emailing:
+Run the scrape and classification pipeline without saving results or sending email:
 
 ```bash
 curl "http://127.0.0.1:8787/api/refresh?secret=dev-cron-secret&dry_run=true&reclassify=true"
 ```
 
-Send a test notification to `TEST_EMAIL` (bypasses the notification window):
+To inspect a test notification in Mailpit, first confirm `.env.dev` has `MAILPIT_URL` set. Then send a test message to `TEST_EMAIL`. This test route bypasses the notification schedule and does not mark listings as notified:
 
 ```bash
 curl "http://127.0.0.1:8787/api/refresh?secret=dev-cron-secret&force_email=true"
 ```
 
-Use `notify=false` to persist refreshed classifications without sending anything.
+Use `notify=false` to save refreshed listings without sending a notification.
+
+The notification regression tests use an in-memory database and mocked email requests. They never send real email:
+
+```bash
+bun test src/index.notify.test.ts
+```
 
 ### Commands
 
 | Command | Purpose |
 |---|---|
-| `bun run dev` | Local worker, loading `.env.dev` |
+| `bun run dev` | Start the local worker and load `.env.dev` |
 | `bun test` | Test suite |
 | `bun run lint` | Typecheck (`tsc --noEmit`) |
 | `bun run db:seed` | Load `seeds/dev.sql` into local D1 |
 | `bun run db:reset` | Delete all local listings |
 | `bun run deploy` | Deploy to Cloudflare |
 
-## Email Flows
+## Email flows
 
-Three emails are sent:
+The app sends three types of email:
 
-1. **Confirmation** (`sendConfirmEmail`) — on `POST /api/subscribe`. Contains a signed, 48-hour link to `/confirm`.
-2. **Welcome** (`sendWelcomeEmail`) — after the link is confirmed. Only at this point is the address added to the Brevo list.
-3. **New listings** (`notifySubscribers`) — one digest per notification slot, nearest deadline first.
+1. **Confirmation.** `POST /api/subscribe` sends a signed link that expires after 48 hours.
+2. **Welcome.** After the recipient confirms, the app adds the address to the Brevo list and sends a welcome message.
+3. **New listings.** Subscribers receive one digest during each notification slot, ordered by application deadline.
 
-Subscription is double opt-in: `POST /api/subscribe` never writes to the mailing list, `POST /api/confirm` does. The subscribe endpoint returns the same response either way, so it cannot be used to probe list membership.
+The app adds subscribers to the mailing list only through `POST /api/confirm`, not `POST /api/subscribe`. Both new and existing addresses get the same response from the subscribe endpoint, so it does not reveal whether an address is already subscribed.
 
 Unsubscribe uses a stateless HMAC link (`/unsubscribe` → `POST /api/unsubscribe`).
 
 ### Notification schedule
 
-Listings are collected continuously but emailed only during the local hours listed in `NOTIFY_HOURS`, interpreted in `NOTIFY_TIMEZONE` (defaults `8,18` and `Africa/Casablanca`, set in `wrangler.toml`):
+The scraper runs every five hours. The notification check runs hourly and sends only during `NOTIFY_HOURS`, interpreted in `NOTIFY_TIMEZONE`. The defaults in `wrangler.toml` are 08:00 and 18:00 in `Africa/Casablanca`.
 
-- The hourly cron decides whether to send; the every-5-hours cron scrapes.
-- Outside the window, pending listings are held and sent at the next slot.
-- A listing is marked notified only after a successful send, so a failed delivery is retried rather than lost.
-- A manual `GET /api/refresh` flushes pending listings immediately, outside the window.
+- Listings found between notification slots wait until the next slot.
+- Before sending, the worker claims each relevant listing in D1. Later runs skip claimed listings, including overlapping runs.
+- If the claim cannot be saved, the worker does not send the email.
+- If the email provider returns an error or the result is uncertain, the worker does not retry automatically. Check the logs and provider delivery history before retrying, since a retry could duplicate messages.
+- A manual `GET /api/refresh` sends pending notifications immediately, without waiting for a scheduled slot.
 
 ## Deployment
 
-1. **Authenticate:**
+1. **Log in to Cloudflare.**
 
    ```bash
    bunx wrangler login
    ```
 
-2. **Create the production database** (first deploy only) and copy the generated `database_id` into `wrangler.toml`:
+2. **Create the production database** on the first deploy. Copy its `database_id` into `wrangler.toml`:
 
    ```bash
    bunx wrangler d1 create concours-db
    ```
 
-3. **Initialize the schema** (first deploy only).
+3. **Initialize the schema** on the first deploy.
 
    > `schema.sql` drops and recreates its tables. Run it only against a new, empty database.
 
@@ -173,16 +181,18 @@ Listings are collected continuously but emailed only during the local hours list
    bunx wrangler d1 execute concours-db --remote --file=schema.sql
    ```
 
-   For a database that already has data, apply the notification-schedule column instead. **The backfill is required**: without it, the first notification pass emails every existing listing at once.
+   For a database that already contains data, add the notification column and backfill it. The backfill prevents the next notification pass from emailing every existing listing.
 
    ```bash
    bunx wrangler d1 execute concours-db --remote --command \
      "ALTER TABLE concours ADD COLUMN notifiedAt DATETIME; UPDATE concours SET notifiedAt = CURRENT_TIMESTAMP WHERE notifiedAt IS NULL;"
    ```
 
-   If the database tracks migrations (`SELECT name FROM d1_migrations` returns rows), use `bunx wrangler d1 migrations apply concours-db --remote` instead.
+   If the database tracks migrations, use `bunx wrangler d1 migrations apply concours-db --remote` instead. You can check by running `SELECT name FROM d1_migrations` against the database.
 
-4. **Set secrets** (see [`.env.example`](.env.example)):
+   Before deploying, check `notifiedAt` for listings that were already emailed. If any have a `NULL` value, update only the IDs confirmed as delivered. Otherwise, the next notification check may send those listings again. For a partially delivered batch, check each recipient's delivery history before changing notification state.
+
+4. **Set production secrets.** See [`.env.example`](.env.example) for the full list:
 
    ```bash
    bunx wrangler secret put SMTP_API_KEY
@@ -196,7 +206,7 @@ Listings are collected continuously but emailed only during the local hours list
    bunx wrangler secret put TURNSTILE_SECRET_KEY
    ```
 
-5. **Deploy:**
+5. **Deploy the worker.**
 
    ```bash
    bun run deploy

@@ -72,7 +72,7 @@ export async function loadAll(env: Env): Promise<MatchedConcours[]> {
     });
   } catch (err) {
     console.error('[store] loadAll error', err);
-    return [];
+    throw err;
   }
 }
 
@@ -119,10 +119,12 @@ export async function mergeAndPrune(
 
   // Prune expired
   const beforePrune = map.size;
+  const expiredIds: string[] = [];
   for (const [id, item] of map) {
     if (!isOpenDeadline(item.depositDeadlineIso)) {
       console.log(`[store] Pruning expired: ${id} (${item.title}) deadline=${item.depositDeadlineIso}`);
       map.delete(id);
+      expiredIds.push(id);
     }
   }
   console.log(`[store] Pruned ${beforePrune - map.size} expired items, ${map.size} remaining`);
@@ -134,20 +136,25 @@ export async function mergeAndPrune(
     return ta - tb;
   });
 
-  try {
-    // Clear old items and insert fresh (simple approach for small dataset)
-    // To be safer, we use a batch transaction
-    const stmts = [env.DB.prepare('DELETE FROM concours')];
-
-    for (const item of all) {
-      stmts.push(
-        env.DB.prepare(
-          `INSERT INTO concours (
-             id, title, wadifaUrl, sourceUrl, depositDeadlineIso, concoursDateIso, details,
-             matchReason, aiRelevant, aiReason, classificationVersion, classificationHash,
-             classificationSource, classificationModel, classifiedAt, notifiedAt
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        ).bind(
+  const stmts: D1PreparedStatement[] = [];
+  for (const item of all) {
+    stmts.push(
+      env.DB.prepare(
+        `INSERT INTO concours (
+              id, title, wadifaUrl, sourceUrl, depositDeadlineIso, concoursDateIso, details,
+              matchReason, aiRelevant, aiReason, classificationVersion, classificationHash,
+              classificationSource, classificationModel, classifiedAt, notifiedAt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              title = excluded.title, wadifaUrl = excluded.wadifaUrl,
+              sourceUrl = excluded.sourceUrl, depositDeadlineIso = excluded.depositDeadlineIso,
+              concoursDateIso = excluded.concoursDateIso, details = excluded.details,
+              matchReason = excluded.matchReason, aiRelevant = excluded.aiRelevant,
+              aiReason = excluded.aiReason, classificationVersion = excluded.classificationVersion,
+              classificationHash = excluded.classificationHash, classificationSource = excluded.classificationSource,
+              classificationModel = excluded.classificationModel, classifiedAt = excluded.classifiedAt,
+              notifiedAt = COALESCE(concours.notifiedAt, excluded.notifiedAt)`
+      ).bind(
           item.id,
           item.title,
           item.wadifaUrl,
@@ -164,31 +171,25 @@ export async function mergeAndPrune(
           item.classificationModel || null,
           item.classifiedAt || null,
           item.notifiedAt || null
-        )
-      );
-    }
-
-    await env.DB.batch(stmts);
-  } catch (err) {
-    console.error('[store] mergeAndPrune error saving batch:', err);
+      )
+    );
   }
+  for (const id of expiredIds) stmts.push(env.DB.prepare('DELETE FROM concours WHERE id = ?').bind(id));
+
+  if (stmts.length) await env.DB.batch(stmts);
 
   return { all, newItems };
 }
 
-/**
- * Mark listings as notified. Called only after a successful send so that a
- * failed delivery is retried at the next notification slot.
- */
-export async function markNotified(ids: string[], env: Env, at: Date = new Date()): Promise<void> {
-  if (!ids.length) return;
-  try {
-    await env.DB.batch(
-      ids.map((id) =>
-        env.DB.prepare('UPDATE concours SET notifiedAt = ? WHERE id = ?').bind(at.toISOString(), id)
-      )
-    );
-  } catch (err) {
-    console.error('[store] markNotified error', err);
+/** Claim each relevant listing atomically before contacting the email provider. */
+export async function claimNotifications(ids: string[], env: Env, at: Date = new Date()): Promise<string[]> {
+  if (!ids.length) return [];
+  const results = await env.DB.batch(ids.map((id) =>
+    env.DB.prepare('UPDATE concours SET notifiedAt = ? WHERE id = ? AND notifiedAt IS NULL AND aiRelevant = 1')
+      .bind(at.toISOString(), id)
+  ));
+  if (results.length !== ids.length || results.some((result) => !result.success || typeof result.meta?.changes !== 'number')) {
+    throw new Error('Could not verify notification claims in D1');
   }
+  return ids.filter((_, index) => results[index]!.meta.changes === 1);
 }

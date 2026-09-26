@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { configDefaults, getAppBaseUrl, mailEnabled, subscribersEnabled, turnstileEnabled } from './lib/config';
 import type { Env } from './lib/config';
-import { loadAll, markNotified, mergeAndPrune } from './lib/concours-store';
+import { claimNotifications, loadAll, mergeAndPrune } from './lib/concours-store';
 import { scrapeMatchedConcours } from './lib/scraper';
 import type { MatchedConcours } from './lib/scraper';
 import { buildRss } from './lib/rss';
@@ -36,14 +36,14 @@ function buildClassificationMap(items: MatchedConcours[]): Map<string, StoredCla
   return classifications;
 }
 
-/** Relevant listings that have not been emailed yet, nearest deadline first. */
+/** Relevant listings that have not been attempted yet, nearest deadline first. */
 function pendingNotifications(items: MatchedConcours[]): MatchedConcours[] {
   return items
     .filter((item) => item.aiRelevant === true && !item.notifiedAt)
     .slice(0, configDefaults.maxFeedItems);
 }
 
-/** Send every pending listing and mark it notified. `items` must already be deadline-ascending. */
+/** Claim pending listings before sending. `items` must already be deadline-ascending. */
 export async function flushPendingNotifications(
   env: Env,
   items: MatchedConcours[],
@@ -55,21 +55,42 @@ export async function flushPendingNotifications(
     return 0;
   }
 
+  if (!mailEnabled(env)) {
+    console.warn('[notify] Mail is not configured; holding pending listings.');
+    return 0;
+  }
+
   const subscribers = await emailListSubscribers(env);
   if (!subscribers.length) {
     console.log(`[notify] ${pending.length} pending listings but no subscribers.`);
     return 0;
   }
 
-  const ok = await notifySubscribers(subscribers, pending, env);
-  if (!ok) {
-    console.warn(`[notify] Send failed for ${pending.length} listings; leaving them pending for the next slot.`);
+  const claimed = new Set(await claimNotifications(pending.map((item) => item.id), env));
+  const toSend = pending.filter((item) => claimed.has(item.id));
+  if (!toSend.length) {
+    console.log('[notify] Pending listings were claimed by another run.');
     return 0;
   }
 
-  await markNotified(pending.map((item) => item.id), env);
-  console.log(`[notify] Notified ${pending.length} listings to ${subscribers.length} subscribers in ${t.mark()}ms.`);
-  return pending.length;
+  let ok = false;
+  try {
+    ok = await notifySubscribers(subscribers, toSend, env);
+  } catch (err) {
+    console.error('[notify] Delivery outcome uncertain; claimed listings will not be resent automatically.', {
+      ids: toSend.map((item) => item.id), error: err,
+    });
+    return 0;
+  }
+  if (!ok) {
+    console.warn('[notify] Delivery outcome uncertain; not resending automatically.', {
+      ids: toSend.map((item) => item.id), subscribers: subscribers.length,
+    });
+    return 0;
+  }
+
+  console.log(`[notify] Notified ${toSend.length} listings to ${subscribers.length} subscribers in ${t.mark()}ms.`);
+  return toSend.length;
 }
 
 /** Cron notification pass: holds pending listings until a configured local slot. */

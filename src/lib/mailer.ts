@@ -475,29 +475,8 @@ export async function notifySubscribers(
       messageVersions: versions,
     }, env);
 
-    if (!batchOk) {
-      let fallbackOk = true;
-      for (const s of batch) {
-        let token = '';
-        try {
-          token = createUnsubscribeToken(s.email, env);
-        } catch {
-          token = '';
-        }
-        const unsubUrl = token
-          ? `${appBaseUrl}/unsubscribe?token=${encodeURIComponent(token)}`
-          : `${appBaseUrl}/unsubscribe`;
-        const singleOk = await sendemail({
-          sender,
-          to: [{ email: s.email }],
-          subject,
-          textContent: buildNotifyText(items, unsubUrl),
-          htmlContent: buildNotifyHtml(items, unsubUrl, appBaseUrl),
-        }, env);
-        fallbackOk = fallbackOk && singleOk;
-      }
-      okAll = okAll && fallbackOk;
-    }
+    // A rejected batch can have accepted some recipients; retrying everyone duplicates mail.
+    okAll = okAll && batchOk;
   }
 
   return okAll;

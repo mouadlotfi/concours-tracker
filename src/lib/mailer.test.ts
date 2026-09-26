@@ -88,4 +88,26 @@ describe('notifySubscribers', () => {
     expect(order[0]).toBeLessThan(order[1]!);
     expect(order[1]).toBeLessThan(order[2]!);
   });
+
+  test('does not retry recipients after a partially failed Mailpit batch', async () => {
+    const recipients: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+      const message = JSON.parse(String(init?.body)) as { To: Array<{ Email: string }> };
+      recipients.push(message.To[0]!.Email);
+      return new Response('', { status: recipients.length === 1 ? 200 : 500 });
+    }) as typeof fetch;
+
+    try {
+      const ok = await notifySubscribers(
+        [{ email: 'a@example.com' }, { email: 'b@example.com' }],
+        [concours('1', null)],
+        { MAILPIT_URL: 'http://mailpit.test', APP_BASE_URL: 'http://base.test' } as Env
+      );
+      expect(ok).toBe(false);
+      expect(recipients).toEqual(['a@example.com', 'b@example.com']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
