@@ -96,6 +96,14 @@ The example `.env.dev` sets `MAILPIT_URL`, so the local worker sends mail to Mai
 bunx wrangler d1 execute concours-db --local --file=schema.sql
 ```
 
+### Seed the local database
+
+The schema creates empty tables. Load the saved development listings to populate the local website:
+
+```bash
+bun run db:seed
+```
+
 ### Start the local app
 
 ```bash

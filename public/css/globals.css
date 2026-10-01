@@ -36,7 +36,7 @@ body {
 body {
   margin: 0;
   min-height: 100%;
-  padding: 42px 20px 96px;
+  padding: 24px 20px 96px;
   background: var(--bg);
   color: var(--text);
   font-family: 'Departure Mono', monospace;

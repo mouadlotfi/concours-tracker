@@ -311,6 +311,11 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
   return items;
 }
 
+export function normalizeDetailValue(label: string, value: string): string {
+  if (!/^Salaire\s*:?$/i.test(label.trim())) return value;
+  return value.replace(/\s*—\s*Voir le salaire de ce grade\s*→\s*$/, '').trim();
+}
+
 export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail> {
   const html = await fetchHtml(wadifaUrl);
   const $ = cheerio.load(html);
@@ -330,7 +335,7 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
         .trim()
     );
     if (!value) return;
-    details[label] = value;
+    details[label] = normalizeDetailValue(label, value);
   });
 
   const sourceHref = ($('a#UrlJobEmploi').attr('href') || '').trim();

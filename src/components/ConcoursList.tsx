@@ -124,14 +124,28 @@ export function compareConcoursDates(
   return direction === 'asc' ? da.localeCompare(db) : db.localeCompare(da);
 }
 
+export const SortBar = () => html`
+  <div class="sortBar">
+    <span class="sortLabel">Trier par</span>
+    <button type="button" class="sortBtn sortBtnActive" id="sort-limite" onclick="toggleSort('limite')">
+      Date limite de dépôt<span class="sortArrow" id="sort-limite-arrow"> ↑</span>
+    </button>
+    <button type="button" class="sortBtn" id="sort-concours" onclick="toggleSort('concours')">
+      Date du concours<span class="sortArrow" id="sort-concours-arrow"></span>
+    </button>
+  </div>
+`;
+
 export const ConcoursList = ({
   items,
   maxItems,
   now = new Date(),
+  showSortBar = true,
 }: {
   items: MatchedConcours[];
   maxItems: number;
   now?: Date;
+  showSortBar?: boolean;
 }) => {
   const displayItems = items.slice(0, maxItems);
   const pinnedItems = selectPinnedItems(displayItems, now);
@@ -146,15 +160,7 @@ export const ConcoursList = ({
     ` : ''}
 
     ${regularItems.length ? html`
-      <div class="sortBar">
-        <span class="sortLabel">Trier par</span>
-        <button type="button" class="sortBtn sortBtnActive" id="sort-limite" onclick="toggleSort('limite')">
-          Date limite de dépôt<span class="sortArrow" id="sort-limite-arrow"> ↑</span>
-        </button>
-        <button type="button" class="sortBtn" id="sort-concours" onclick="toggleSort('concours')">
-          Date du concours<span class="sortArrow" id="sort-concours-arrow"></span>
-        </button>
-      </div>
+      ${showSortBar ? SortBar() : ''}
 
       <div class="list" id="concours-container">
         ${regularItems.map((it) => renderItem(it))}

@@ -8,7 +8,7 @@ import { claimNotifications, loadAll, mergeAndPrune } from './lib/concours-store
 import { scrapeMatchedConcours } from './lib/scraper';
 import type { MatchedConcours } from './lib/scraper';
 import { buildRss } from './lib/rss';
-import { ConcoursList, selectPinnedItems } from './components/ConcoursList';
+import { ConcoursList, selectPinnedItems, SortBar } from './components/ConcoursList';
 import { SubscribeCard } from './components/SubscribeCard';
 import { emailContactExistsInList, emailListSubscribers, emailRemoveContact, emailUpsertContact } from './lib/subscriptions';
 import { notifySubscribers, sendConfirmEmail, sendWelcomeEmail } from './lib/mailer';
@@ -122,6 +122,7 @@ app.get('/', async (c) => {
   const now = new Date();
   const hasPinned = items.length > 0
     && selectPinnedItems(items.slice(0, configDefaults.maxFeedItems), now).length > 0;
+  const sortInHeader = !error && items.length > 0 && !hasPinned;
 
   return c.html(
     html`
@@ -145,8 +146,9 @@ app.get('/', async (c) => {
           </header>
 
           <section class="section">
-            <div class="sectionHead">
+            <div class="sectionHead${sortInHeader ? ' sectionHeadSortable' : ''}">
               ${hasPinned ? html`<h2 class="pinnedHeading">Épinglés</h2>` : ''}
+              ${sortInHeader ? SortBar() : ''}
               <div class="sectionMeta">
                 <a href="/feed.xml">RSS</a>
               </div>
@@ -157,7 +159,7 @@ app.get('/', async (c) => {
                 <span class="dot errDot"></span>
                 Erreur scrape: ${error}
               </div>
-            ` : items.length ? ConcoursList({ items, maxItems: configDefaults.maxFeedItems, now }) : html`
+            ` : items.length ? ConcoursList({ items, maxItems: configDefaults.maxFeedItems, now, showSortBar: !sortInHeader }) : html`
               <div class="empty">
                 Aucun concours disponible pour l'instant.
               </div>

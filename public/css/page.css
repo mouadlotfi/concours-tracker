@@ -67,6 +67,18 @@
   margin-bottom: 14px;
 }
 
+.sectionHeadSortable {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.sectionHeadSortable .sortBar {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
 .sortLabel {
   font-family: 'Departure Mono', monospace;
   font-size: 10px;
@@ -397,7 +409,7 @@
   text-transform: uppercase;
   color: #121224;
   line-height: 1.2;
-  margin-top: 8px;
+  margin-top: 0;
   margin-bottom: 12px;
   letter-spacing: -0.5px;
 }

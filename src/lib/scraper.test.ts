@@ -1,8 +1,57 @@
 import { expect, test } from 'bun:test';
 import * as cheerio from 'cheerio';
 
-import { mergeConcours } from './concours-store';
-import { parseListCard, type MatchedConcours } from './scraper';
+import type { Env } from './config';
+import { loadAll, mergeConcours } from './concours-store';
+import { fetchWadifaDetail, normalizeDetailValue, parseListCard, type MatchedConcours } from './scraper';
+
+test('removes the salary navigation label without changing amounts or other fields', () => {
+  expect(normalizeDetailValue('Salaire', '5794.68 DH — Voir le salaire de ce grade →')).toBe('5794.68 DH');
+  expect(normalizeDetailValue('Salaire :', '10901.92 DH — Voir le salaire de ce grade →')).toBe('10901.92 DH');
+  expect(normalizeDetailValue('Salaire', '5794.68 DH')).toBe('5794.68 DH');
+  expect(normalizeDetailValue('Salaire', 'Non précisé')).toBe('Non précisé');
+  expect(normalizeDetailValue('Autre', '5794.68 DH — Voir le salaire de ce grade →'))
+    .toBe('5794.68 DH — Voir le salaire de ce grade →');
+});
+
+test('cleans salary labels in existing stored details when loading listings', async () => {
+  const env = {
+    DB: {
+      prepare: () => ({
+        all: async () => ({
+          results: [{
+            id: 'salary',
+            title: 'Technicien',
+            wadifaUrl: 'https://example.com/salary',
+            details: JSON.stringify({
+              Salaire: '5794.68 DH — Voir le salaire de ce grade →',
+              Région: 'Oriental',
+            }),
+          }],
+        }),
+      }),
+    },
+  } as unknown as Env;
+  const [item] = await loadAll(env);
+  expect(item.details).toEqual({ Salaire: '5794.68 DH', Région: 'Oriental' });
+});
+
+test('scrapes the salary amount without the source navigation link', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(`
+    <div id="InfosJob"><div class="job-overview-inner"><ul>
+      <li><span>Salaire</span><h5><strong>5794.68 DH</strong>
+        — <a href="/salary">Voir le salaire de ce grade →</a></h5></li>
+      <li><span>Région</span><h5>Oriental</h5></li>
+    </ul></div></div>
+  `)) as typeof fetch;
+  try {
+    const detail = await fetchWadifaDetail('https://www.wadifa-info.com/fr/105018/');
+    expect(detail.details).toEqual({ Salaire: '5794.68 DH', Région: 'Oriental' });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
 
 test('reads current Wadifa cards and does not erase stored fields', () => {
   const $ = cheerio.load(`

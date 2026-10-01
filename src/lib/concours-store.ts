@@ -1,6 +1,6 @@
 import type { Env } from './config';
 import type { MatchedConcours } from './scraper';
-import { isOpenDeadline } from './scraper';
+import { isOpenDeadline, normalizeDetailValue } from './scraper';
 import { endOfDayIsoUtc, parseDdMmYyyyToIsoUtc } from './date';
 
 export type MergeResult = { all: MatchedConcours[]; newItems: MatchedConcours[] };
@@ -58,7 +58,10 @@ export async function loadAll(env: Env): Promise<MatchedConcours[]> {
         title: String(r.title),
         depositDeadlineIso: typeof r.depositDeadlineIso === 'string' ? r.depositDeadlineIso : null,
         concoursDateIso: typeof r.concoursDateIso === 'string' ? r.concoursDateIso : null,
-        details: typeof r.details === 'string' ? JSON.parse(r.details) : {},
+        details: typeof r.details === 'string'
+          ? Object.fromEntries(Object.entries(JSON.parse(r.details) as Record<string, string>)
+            .map(([label, value]) => [label, normalizeDetailValue(label, value)]))
+          : {},
         matchReason: String(r.matchReason || ''),
         aiRelevant: r.aiRelevant === null || r.aiRelevant === undefined ? undefined : Boolean(r.aiRelevant),
         aiReason: typeof r.aiReason === 'string' ? r.aiReason : undefined,
