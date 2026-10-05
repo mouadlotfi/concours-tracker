@@ -188,6 +188,8 @@ function emailHead(appBaseUrl: string): string {
       .em-card { padding-left: 18px !important; padding-right: 18px !important; }
       .em-h1 { font-size: 19px !important; }
       .em-cta { display: block !important; text-align: center !important; }
+      .em-footer a { display: block !important; padding: 3px 0; }
+      .em-sep { display: none !important; }
     }
   </style>`;
 }
@@ -241,11 +243,11 @@ function emailButton(href: string, label: string): string {
 
 function emailFooter(appBaseUrl: string, unsubUrl?: string): string {
   const link = `color:${THEME.textDim};`;
-  const sep = `<span style="color:${THEME.border};">&nbsp;&middot;&nbsp;</span>`;
+  const sep = `<span class="em-sep" style="color:${THEME.border};">&nbsp;&middot;&nbsp;</span>`;
   const parts = [`<a href="${appBaseUrl}" style="${link}">Voir tous les concours</a>`];
   if (unsubUrl) parts.push(`<a href="${unsubUrl}" style="${link}">Se d&eacute;sabonner</a>`);
   parts.push(`<a href="${appBaseUrl}/feed.xml" style="${link}">RSS</a>`);
-  return `<p style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:0.5px;color:${THEME.textDim};">
+  return `<p class="em-footer" style="margin:0;font-family:${MONO};font-size:10px;letter-spacing:0.5px;color:${THEME.textDim};">
     ${parts.join(`\n    ${sep}\n    `)}
   </p>`;
 }
