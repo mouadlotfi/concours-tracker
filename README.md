@@ -10,7 +10,7 @@
 
 :star: If you find this project helpful, please consider starring it on GitHub!
 
-[Overview](#overview) • [Features](#features) • [Architecture](#architecture) • [Getting Started](#getting-started) • [Email Flows](#email-flows) • [Deployment](#deployment)
+[Overview](#overview) • [Features](#features) • [How it works](#how-it-works) • [Getting Started](#getting-started) • [Email Flows](#email-flows) • [Deployment](#deployment)
 
 <img src="public/screenshot.png" alt="Concours Tracker homepage listing Moroccan public-sector IT concours" width="900">
 
@@ -18,42 +18,35 @@
 
 ## Overview
 
-**Concours Tracker** checks Moroccan public-sector job listings on `wadifa-info.com`, keeps software and web development roles, and shares them on the website, by email, and through RSS.
+**Concours Tracker** checks Moroccan public-sector job listings on `wadifa-info.com`, keeps the software and web development roles, and shares them on a website, by email, and through RSS.
 
-The app runs on Cloudflare Workers and stores listings in D1.
+The app runs on Cloudflare Workers and stores its listings in Cloudflare D1.
 
 ## Features
 
-- **Cloudflare Workers and D1** run the app and store listings.
-- **French and Arabic classification rules** filter listings first. OpenRouter with PDF parsing reviews ambiguous cases, and a guardrail requires evidence from the listing or its official document.
-- **Scheduled scraping** refreshes listings every five hours and removes expired competitions.
-- **Double opt-in subscriptions** add an address to the mailing list only after its owner confirms by email.
-- **Email digests** go out during configured local hours.
-- **Website and RSS feed** show relevant listings.
-- **Cloudflare Turnstile** protects the subscription form from bots.
+- **Hosting and storage.** The app runs on Cloudflare Workers, and D1 stores the listings.
+- **Two-step filtering.** Simple rules in French and Arabic handle the clear cases. Anything unclear goes to an AI model, which must cite the listing or its official PDF before marking a job as relevant.
+- **Scheduled refresh.** Listings update every five hours, and expired competitions are removed.
+- **Double opt-in signups.** An address joins the mailing list only after its owner clicks a confirmation link.
+- **Email digests.** Subscribers get one summary per notification slot, at the hours you configure.
+- **Website and RSS feed** for browsing or subscribing.
+- **Bot protection.** Cloudflare Turnstile guards the signup form.
 
-## Architecture
+## How it works
 
-The worker has two entry points. Hono's `fetch` handler serves the website, RSS feed, and API routes. The `scheduled` handler runs the cron jobs.
+Concours Tracker runs as a single Cloudflare Worker. It answers web requests (the site, the RSS feed, and the API) and also runs on a timer to look for new listings.
 
-```
-Cron "0 */5 * * *"  ──► scrape ──► classify (rules, then AI if needed) ──► save listings (D1)
-Cron "0 * * * *"    ──► check for unclaimed listings (only during NOTIFY_HOURS)
-                                 │
-GET /api/refresh  ───────────────┘
-                                 ▼
-                      email: Brevo or local Mailpit
-```
+New listings are filtered by rules first. Anything the rules can't decide goes to an AI model, which must cite the listing or its attached document. The results are saved to the database, and the fresh listings are emailed to subscribers.
 
-Main dependencies:
+Main tools:
 
-- **Hono** handles routes and server-rendered HTML.
-- **Cloudflare D1** stores listings in SQLite.
-- **Cron Triggers** run scraping and notification checks.
-- **Cheerio** parses listing pages.
-- **Zod** validates request data.
-- **Brevo** delivers email and stores the mailing list.
-- **OpenRouter** classifies ambiguous listings.
+- **Hono** for routes and server-rendered HTML.
+- **Cloudflare D1** for storing listings.
+- **Cron Triggers** for scheduled scraping and notification checks.
+- **Cheerio** for reading listing pages.
+- **Zod** for validating incoming data.
+- **Brevo** for sending email and managing the mailing list.
+- **OpenRouter** for reviewing ambiguous listings.
 
 ## Getting Started
 
@@ -61,7 +54,7 @@ Main dependencies:
 
 - [Bun](https://bun.sh/) for development, package management, and tests
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)
-- Optional for local email capture: Docker and Mailpit
+- Optional, for capturing email locally: Docker and Mailpit
 - For production email and classification: [Brevo](https://app.brevo.com/), [OpenRouter](https://openrouter.ai/), and [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) accounts
 
 ### Installation
@@ -90,15 +83,15 @@ sudo sh < <(curl -sL https://raw.githubusercontent.com/axllent/mailpit/develop/i
 
 The example `.env.dev` sets `MAILPIT_URL`, so the local worker sends mail to Mailpit instead of Brevo.
 
-### Initialize the local database
+### Set up the local database
 
 ```bash
 bunx wrangler d1 execute concours-db --local --file=schema.sql
 ```
 
-### Seed the local database
+### Load some sample data
 
-The schema creates empty tables. Load the saved development listings to populate the local website:
+The schema starts with empty tables. Load the saved development listings to populate the local site:
 
 ```bash
 bun run db:seed
@@ -120,7 +113,7 @@ Run the scrape and classification pipeline without saving results or sending ema
 curl "http://127.0.0.1:8787/api/refresh?secret=dev-cron-secret&dry_run=true&reclassify=true"
 ```
 
-To inspect a test notification in Mailpit, first confirm `.env.dev` has `MAILPIT_URL` set. Then send a test message to `TEST_EMAIL`. This test route bypasses the notification schedule and does not mark listings as notified:
+To inspect a test notification in Mailpit, first confirm `.env.dev` has `MAILPIT_URL` set. Then send a test message to `TEST_EMAIL`. This test route ignores the notification schedule and does not mark listings as notified:
 
 ```bash
 curl "http://127.0.0.1:8787/api/refresh?secret=dev-cron-secret&force_email=true"
@@ -147,15 +140,15 @@ bun test src/index.notify.test.ts
 
 ## Email flows
 
-The app sends three types of email:
+The app sends three kinds of email:
 
-1. **Confirmation.** `POST /api/subscribe` sends a signed link that expires after 48 hours.
-2. **Welcome.** After the recipient confirms, the app adds the address to the Brevo list and sends a welcome message.
+1. **Confirmation.** `POST /api/subscribe` sends a confirmation link that expires after 48 hours.
+2. **Welcome.** Once the recipient confirms, the app adds the address to the Brevo list and sends a welcome message.
 3. **New listings.** Subscribers receive one digest during each notification slot, ordered by application deadline.
 
-The app adds subscribers to the mailing list only through `POST /api/confirm`, not `POST /api/subscribe`. Both new and existing addresses get the same response from the subscribe endpoint, so it does not reveal whether an address is already subscribed.
+An address is added to the mailing list only through `POST /api/confirm`, not `POST /api/subscribe`. Both new and already-subscribed addresses get the same response from the subscribe endpoint, so it does not reveal whether an address is already subscribed.
 
-Unsubscribe uses a stateless HMAC link (`/unsubscribe` → `POST /api/unsubscribe`).
+Unsubscribing uses a self-contained link (`/unsubscribe` → `POST /api/unsubscribe`), so nothing needs to be stored.
 
 ### Notification schedule
 
