@@ -66,6 +66,18 @@ describe(`classifier ${CLASSIFIER_VERSION}`, () => {
     expect(result.kind).toBe('accept');
   });
 
+  test('accepts "développement de systèmes informatiques" specialties', () => {
+    const result = classifyByRules(candidate({
+      details: {
+        'Spécialités requises':
+          'technicien spécialisé en systèmes de réseau informatiques technicien spécialisé en développement de systèmes informatiques',
+      },
+    }));
+
+    expect(result.kind).toBe('accept');
+    expect(result.reason).toContain('développement de systèmes informatiques');
+  });
+
   test('holds generic informatique for official-document inspection', () => {
     const result = classifyByRules(candidate({
       title: 'Technicien de 3ème grade en génie civil, informatique',

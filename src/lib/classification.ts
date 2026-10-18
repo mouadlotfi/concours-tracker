@@ -41,6 +41,7 @@ const STRONG_DEVELOPMENT_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
   { label: 'développement informatique', pattern: /\bdeveloppements?\s+informatique\b/ },
   { label: 'développement web', pattern: /\bdeveloppements?\s+web\b/ },
   { label: 'développement logiciel', pattern: /\bdeveloppements?\s+logiciels?\b/ },
+  { label: 'développement de systèmes informatiques', pattern: /\bdeveloppements?\s+de\s+systemes?\s+informatiques?\b/ },
   { label: 'génie logiciel', pattern: /\bgenie\s+logiciel\b/ },
   {
     label: 'techniques de développement',
