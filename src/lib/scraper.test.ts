@@ -3,7 +3,18 @@ import * as cheerio from 'cheerio';
 
 import type { Env } from './config';
 import { loadAll, mergeConcours } from './concours-store';
-import { fetchWadifaDetail, normalizeDetailValue, parseListCard, type MatchedConcours } from './scraper';
+import { fetchWadifaDetail, listWadifaItems, normalizeDetailValue, parseListCard, type MatchedConcours } from './scraper';
+
+/** Serve one HTML body for every fetch made inside `run`. */
+async function withFetch(html: string, run: () => Promise<void>): Promise<void> {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(html)) as typeof fetch;
+  try {
+    await run();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
 
 test('removes the salary navigation label without changing amounts or other fields', () => {
   expect(normalizeDetailValue('Salaire', '5794.68 DH — Voir le salaire de ce grade →')).toBe('5794.68 DH');
@@ -37,20 +48,16 @@ test('cleans salary labels in existing stored details when loading listings', as
 });
 
 test('scrapes the salary amount without the source navigation link', async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async () => new Response(`
+  await withFetch(`
     <div id="InfosJob"><div class="job-overview-inner"><ul>
       <li><span>Salaire</span><h5><strong>5794.68 DH</strong>
         — <a href="/salary">Voir le salaire de ce grade →</a></h5></li>
       <li><span>Région</span><h5>Oriental</h5></li>
     </ul></div></div>
-  `)) as typeof fetch;
-  try {
+  `, async () => {
     const detail = await fetchWadifaDetail('https://www.wadifa-info.com/fr/105018/');
     expect(detail.details).toEqual({ Salaire: '5794.68 DH', Région: 'Oriental' });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+  });
 });
 
 test('reads current Wadifa cards and does not erase stored fields', () => {
@@ -85,4 +92,40 @@ test('reads current Wadifa cards and does not erase stored fields', () => {
 
   expect(merged.details['Administration qui recrute']).toBe('Ministère des Affaires étrangères');
   expect(merged.depositDeadlineIso).toBe('2026-08-10T23:59:59.999Z');
+});
+
+test('reads the current card markup, where the link wraps only the title', async () => {
+  await withFetch(`
+    <div class="job-listing">
+      <img class="wf-emp-logo" alt="Ministère de l'Intérieur">
+      <h3 class="job-listing-title">
+        <a class="wf-card-link" href="/fr/136528/Province-concours">Province : concours 1 Technicien</a>
+        <span class="wf-fresh-new">Nouveau</span>
+      </h3>
+      <li><a class="diplomas wf-tag" href="/diplome">Diplôme de Technicien</a></li>
+      <li><a class="speciliteList wf-tag" href="/specialite">développement informatique</a></li>
+      <time class="wf-datechip wf-datechip-orange" title="Date limite : 08/11/2026">16 jours</time>
+      <span class="wf-datechip wf-datechip-green" title="Date du concours">14/11/2026</span>
+    </div>
+  `, async () => {
+    const [item] = await listWadifaItems();
+    expect(item.id).toBe('136528');
+    expect(item.administration).toBe("Ministère de l'Intérieur");
+    expect(item.specialties).toBe('développement informatique');
+    expect(item.depositDeadlineIso).toBe('2026-11-08T23:59:59.999Z');
+  });
+});
+
+test('reads detail values from the current wf-ov markup', async () => {
+  await withFetch(`
+    <div id="InfosJob"><div class="job-overview-inner"><ul>
+      <li><span>Spécialités requises</span>
+        <div class="wf-ov wf-val"><a class="wf-chip" href="/x">développement informatique</a></div></li>
+      <li><span>Date du concours</span><div class="wf-ov">14/11/2026</div></li>
+    </ul></div></div>
+  `, async () => {
+    const detail = await fetchWadifaDetail('https://www.wadifa-info.com/fr/136528/');
+    expect(detail.details['Spécialités requises']).toBe('développement informatique');
+    expect(detail.concoursDateIso).toBe('2026-11-14T00:00:00.000Z');
+  });
 });

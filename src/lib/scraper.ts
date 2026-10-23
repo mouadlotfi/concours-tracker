@@ -290,15 +290,19 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
     const html = await fetchHtml(u.toString());
     const $ = cheerio.load(html);
 
-    $("a[href*='/fr/']").each((_, el) => {
-      const href = ($(el).attr('href') || '').trim();
+    // The title link only wraps the title, so the whole card carries the fields.
+    $('.job-listing').each((_, el) => {
+      const card = $(el);
+      const href = (card.find(".job-listing-title a[href*='/fr/']").attr('href')
+        || card.find("a[href*='/fr/']").attr('href')
+        || '').trim();
       const id = href.match(/\/fr\/(\d{4,6})\//)?.[1];
       if (!id) return;
       const wadifaUrl = absUrl(`/fr/${id}/`);
       if (seen.has(wadifaUrl)) return;
       seen.add(wadifaUrl);
 
-      const parsed = parseListCard($(el));
+      const parsed = parseListCard(card);
 
       items.push({
         id,
@@ -328,7 +332,7 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
     if (!label) return;
     const value = decodeEntities(
       $(li)
-        .find('h2,h5,h4')
+        .find('h2,h5,h4,.wf-ov')
         .first()
         .text()
         .replace(/\s+/g, ' ')

@@ -152,6 +152,14 @@ export function classifyByRules(candidate: ClassificationCandidate): RuleDecisio
     };
   }
 
+  // An unread card is missing data, not evidence that the job is irrelevant.
+  if (!input.specialties && !input.diplomas && !input.context) {
+    return {
+      kind: 'ambiguous',
+      reason: 'Règle: aucune spécialité lisible sur la liste, à vérifier sur la fiche.',
+    };
+  }
+
   return {
     kind: 'reject',
     reason: 'Règle: aucune mention explicite de développement web ou logiciel.',
