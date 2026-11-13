@@ -2,9 +2,9 @@ import { normalizeText } from './normalize';
 
 /** Bac+N level for each diploma label wadifa publishes; Doctorat, Bac and Qualification are deliberately absent. */
 const LEVEL_PATTERNS: Array<[number, RegExp]> = [
-  [5, /\b(?:master|ingenieur|architecte|bac\s*\+\s*5)\b/],
-  [3, /\b(?:licence|bac\s*\+\s*3)\b/],
-  [2, /\b(?:technicien|technologie|dts|bts|dut|deug|deust|bac\s*\+\s*2)\b/],
+  [5, /\b(?:master|ingenieur|architecte)\b/],
+  [3, /\blicence\b/],
+  [2, /\b(?:technicien|technologie|dts|bts|dut|deug|deust)\b/],
 ];
 
 /**

@@ -150,27 +150,25 @@ export const SortBar = () => html`
 
   <script>
   (function() {
-    var buttons = document.querySelectorAll('[data-level]');
+    const buttons = document.querySelectorAll('[data-level]');
 
-    function apply(level) {
-      document.querySelectorAll('.item').forEach(function(item) {
-        item.hidden = level !== 'all' && item.dataset.niveaux.split(' ').indexOf(level) === -1;
+    const apply = (level) => {
+      const list = document.getElementById('concours-container');
+
+      list.querySelectorAll('.item').forEach((item) => {
+        item.hidden = level !== 'all' && !item.dataset.niveaux.split(' ').includes(level);
       });
 
-      buttons.forEach(function(button) {
-        var active = button.getAttribute('data-level') === level;
+      buttons.forEach((button) => {
+        const active = button.getAttribute('data-level') === level;
         button.classList.toggle('sortBtnActive', active);
-        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        button.setAttribute('aria-pressed', String(active));
       });
 
-      document.getElementById('filterEmpty').hidden = !!document.querySelector('.item:not([hidden])');
-    }
+      document.getElementById('filterEmpty').hidden = Boolean(list.querySelector('.item:not([hidden])'));
+    };
 
-    buttons.forEach(function(button) {
-      button.addEventListener('click', function() {
-        apply(button.getAttribute('data-level'));
-      });
-    });
+    buttons.forEach((button) => button.addEventListener('click', () => apply(button.dataset.level)));
   })();
   </script>
 `;
@@ -192,8 +190,6 @@ export const ConcoursList = ({
   const regularItems = displayItems.filter((item) => !pinnedIds.has(item.id));
 
   return html`
-    ${showSortBar && displayItems.length ? SortBar() : ''}
-
     ${pinnedItems.length ? html`
       <div class="pinnedBlock">
         <div class="list">${pinnedItems.map((item) => renderItem(item, true))}</div>
@@ -201,6 +197,8 @@ export const ConcoursList = ({
     ` : ''}
 
     ${regularItems.length ? html`
+      ${showSortBar ? SortBar() : ''}
+
       <div class="list" id="concours-container">
         ${regularItems.map((it) => renderItem(it))}
       </div>

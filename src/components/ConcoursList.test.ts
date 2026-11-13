@@ -59,7 +59,7 @@ test('pins deadlines through the next three business days and keeps them out of 
     now,
   }));
 
-  const pinned = markup.slice(markup.indexOf('class="pinnedBlock"'), markup.indexOf('id="concours-container"'));
+  const pinned = markup.slice(markup.indexOf('class="pinnedBlock"'), markup.indexOf('class="sortBar"'));
   const regular = markup.slice(markup.indexOf('id="concours-container"'));
 
   expect(pinned).toContain('friday');
@@ -74,8 +74,7 @@ test('pins deadlines through the next three business days and keeps them out of 
   expect(regular).not.toContain('wednesday');
 
   expect(String(ConcoursList({ items: [], maxItems: 10 }))).not.toContain('sortBar');
-  // Pinned-only lists still get the toolbar so the level filter stays reachable.
-  expect(String(ConcoursList({ items: [concours('only', '2026-08-03T23:59:59.999Z')], maxItems: 10, now }))).toContain('sortBar');
+  expect(String(ConcoursList({ items: [concours('only', '2026-08-03T23:59:59.999Z')], maxItems: 10, now }))).not.toContain('sortBar');
 
   // Verify sort buttons and arrow containers
   expect(markup).toContain('id="sort-limite"');

@@ -11,7 +11,6 @@ const CASES: Array<[string | undefined, number[]]> = [
   ["Diplôme d Ingénieur d État", [5]],
   ["Diplôme d'Architecte", [5]],
   ['Licence ou Master', [5, 3]],
-  ['Bac+3, Bac+5', [5, 3]],
   ['Doctorat', []],
   ['Doctorat en Médecine Générale', []],
   ['Baccalauréat', []],

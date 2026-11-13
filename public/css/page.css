@@ -139,11 +139,6 @@
   margin-bottom: 26px;
 }
 
-/* The filter can empty the pinned block; collapse it instead of leaving a gap. */
-.pinnedBlock:not(:has(.item:not([hidden]))) {
-  display: none;
-}
-
 .sectionHead:has(+ .pinnedBlock) {
   margin-bottom: 26px;
 }
