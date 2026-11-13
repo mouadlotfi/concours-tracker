@@ -1,6 +1,6 @@
 import type { Env } from './config';
 import type { MatchedConcours } from './scraper';
-import { isOpenDeadline, normalizeDetailValue } from './scraper';
+import { isOpenDeadline, normalizeDetailValue, normalizeDetails } from './scraper';
 import { endOfDayIsoUtc, parseDdMmYyyyToIsoUtc } from './date';
 
 export type MergeResult = { all: MatchedConcours[]; newItems: MatchedConcours[] };
@@ -37,7 +37,7 @@ export function mergeConcours(
       || (deadline ? endOfDayIsoUtc(deadline) : null),
     concoursDateIso: fresh.concoursDateIso || existing?.concoursDateIso
       || (concoursDate ? parseDdMmYyyyToIsoUtc(concoursDate) : null),
-    details,
+    details: normalizeDetails(details),
   };
 }
 
@@ -59,8 +59,7 @@ export async function loadAll(env: Env): Promise<MatchedConcours[]> {
         depositDeadlineIso: typeof r.depositDeadlineIso === 'string' ? r.depositDeadlineIso : null,
         concoursDateIso: typeof r.concoursDateIso === 'string' ? r.concoursDateIso : null,
         details: typeof r.details === 'string'
-          ? Object.fromEntries(Object.entries(JSON.parse(r.details) as Record<string, string>)
-            .map(([label, value]) => [label, normalizeDetailValue(label, value)]))
+          ? normalizeDetails(JSON.parse(r.details) as Record<string, string>)
           : {},
         matchReason: String(r.matchReason || ''),
         aiRelevant: r.aiRelevant === null || r.aiRelevant === undefined ? undefined : Boolean(r.aiRelevant),
@@ -178,6 +177,10 @@ export async function mergeAndPrune(
     );
   }
   for (const id of expiredIds) stmts.push(env.DB.prepare('DELETE FROM concours WHERE id = ?').bind(id));
+  // ponytail: legacy rows with no parsed deadline can never "expire"; drop old rejected ones so they stop accumulating.
+  stmts.push(env.DB.prepare(
+    `DELETE FROM concours WHERE depositDeadlineIso IS NULL AND aiRelevant = 0 AND createdAt < datetime('now', '-7 days')`
+  ));
 
   if (stmts.length) await env.DB.batch(stmts);
 

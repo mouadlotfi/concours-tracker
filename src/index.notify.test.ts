@@ -41,7 +41,8 @@ function makeDb(): Database {
     id TEXT PRIMARY KEY, title TEXT, wadifaUrl TEXT, sourceUrl TEXT,
     depositDeadlineIso TEXT, concoursDateIso TEXT, details TEXT, matchReason TEXT,
     aiRelevant BOOLEAN, aiReason TEXT, classificationVersion TEXT, classificationHash TEXT,
-    classificationSource TEXT, classificationModel TEXT, classifiedAt TEXT, notifiedAt TEXT
+    classificationSource TEXT, classificationModel TEXT, classifiedAt TEXT, notifiedAt TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
   return sqlite;
 }
@@ -55,7 +56,7 @@ function concours(id: string, aiRelevant: boolean | undefined, notifiedAt?: stri
     matchReason: 'dev',
     aiRelevant,
     notifiedAt,
-    depositDeadlineIso: `2026-10-0${id.slice(-1)}T00:00:00.000Z`,
+    depositDeadlineIso: `2099-10-0${id.slice(-1)}T00:00:00.000Z`,
     concoursDateIso: null,
     details: {},
   };
