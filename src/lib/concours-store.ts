@@ -179,7 +179,7 @@ export async function mergeAndPrune(
   for (const id of expiredIds) stmts.push(env.DB.prepare('DELETE FROM concours WHERE id = ?').bind(id));
   // ponytail: legacy rows with no parsed deadline can never "expire"; drop old rejected ones so they stop accumulating.
   stmts.push(env.DB.prepare(
-    `DELETE FROM concours WHERE depositDeadlineIso IS NULL AND aiRelevant = 0 AND createdAt < datetime('now', '-7 days')`
+    'DELETE FROM concours WHERE depositDeadlineIso IS NULL AND aiRelevant = 0 AND createdAt < datetime(\'now\', \'-7 days\')'
   ));
 
   if (stmts.length) await env.DB.batch(stmts);

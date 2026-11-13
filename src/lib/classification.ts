@@ -42,10 +42,7 @@ const STRONG_DEVELOPMENT_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
   { label: 'développement web', pattern: /\bdevelop{1,2}e?ments?\s+web\b/ },
   { label: 'développement logiciel', pattern: /\bdevelop{1,2}e?ments?\s+logiciels?\b/ },
   { label: 'développement digital', pattern: /\bdevelop{1,2}e?ments?\s+digital\b/ },
-  {
-    label: "développement d'applications",
-    pattern: /\bdevelop{1,2}e?ments?\s+d['\u2019]\s?applications?\b/,
-  },
+  { label: "développement d'applications", pattern: /\bdevelop{1,2}e?ments?\s+d['’]\s?applications?\b/ },
   { label: 'développement mobile', pattern: /\bdevelop{1,2}e?ments?\s+mobiles?\b/ },
   { label: 'intégrateur', pattern: /\bintegrateu(?:r|se|rs|ses)\b/ },
   { label: 'intégration web', pattern: /\bintegration\s+web\b/ },

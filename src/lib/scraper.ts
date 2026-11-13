@@ -261,8 +261,7 @@ export function parseListCard(card: cheerio.Cheerio<AnyNode>): Omit<WadifaListIt
   const titleNode = card.find('.job-listing-title').clone();
   titleNode.find('.wf-fresh-new').remove();
 
-  // The chip is orange while the deadline is far and red once it closes in; match on its label instead.
-  // `class*=` also covers the older markup where only `wf-datechip-orange` was set.
+  // The chip is orange far out and red when close, so match its label; class*= also covers the older orange-only markup.
   const deadlineText = card.find('[class*="wf-datechip"][title*="Date limite"]').attr('title')?.match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
     || parsed.deadlineText;
   const concoursDateText = card.find('.wf-datechip-green').text().match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
@@ -341,8 +340,7 @@ export function normalizeDetailValue(label: string, value: string): string {
   return value.replace(/\s*—\s*Voir le salaire de ce grade\s*→\s*$/, '').trim();
 }
 
-// The card and the detail page label the same data differently; keep one row per fact.
-// `null` hides labels that duplicate each other or add nothing for readers.
+// The card and the detail page label the same facts differently; keep one row per label.
 const DETAIL_LABELS: Record<string, string | null> = {
   'Nombre de postes': 'Postes',
   'Diplômes requis': 'Diplômes',
@@ -367,7 +365,6 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
   const $ = cheerio.load(html);
 
   const title = decodeEntities($('h1').first().text().replace(/\s+/g, ' ').trim());
-  // Wadifa renders "… de 0 <grade>" when the post count is unknown; the card title is better.
   const details: Record<string, string> = {};
 
   $('#InfosJob .job-overview-inner li').each((_, li) => {
@@ -408,6 +405,7 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
 
   return {
     wadifaUrl,
+    // Wadifa renders "… de 0 <grade>" when the post count is unknown; the card title is better.
     title: /\bde\s+0\s+/i.test(title) ? null : title || null,
     details,
     sourceUrl,
@@ -575,8 +573,6 @@ export async function scrapeMatchedConcours(
 
   // Only fetch details for listings that either rules or AI deemed relevant.
   // This drastically reduces HTTP subrequests and avoids Cloudflare 50 subrequest limit.
-  // These listings are the ones the site shows, so they get their own small budget
-  // instead of competing with the ambiguous-listing enrichment above.
   const finalOut: MatchedConcours[] = [];
   let relevantDetailFetches = 0;
   for (const item of combined) {
