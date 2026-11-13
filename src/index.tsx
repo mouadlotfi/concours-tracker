@@ -8,7 +8,7 @@ import { claimNotifications, loadAll, mergeAndPrune } from './lib/concours-store
 import { scrapeMatchedConcours, isOpenDeadline } from './lib/scraper';
 import type { MatchedConcours } from './lib/scraper';
 import { buildRss, escapeXml } from './lib/rss';
-import { jsonLd, pageHead } from './components/Document';
+import { jsonLd, pageHead, SiteFooter } from './components/Document';
 import { formatIsoDate, parseDdMmYyyyToIsoUtc } from './lib/date';
 import { ConcoursList, selectPinnedItems, SortBar } from './components/ConcoursList';
 import { SubscribeCard } from './components/SubscribeCard';
@@ -191,17 +191,7 @@ app.get('/', async (c) => {
             ${SubscribeCard({ siteKey: c.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY })}
           </section>
 
-          <div class="footer">
-            <a href="https://www.emploi-public.ma" target="_blank" rel="noreferrer noopener">
-              source: emploi-public.ma
-            </a>
-            <span class="sep"></span>
-            <a href="/feed.xml">RSS</a>
-            <span class="sep"></span>
-            <a href="https://github.com/mouadlotfi/concours-tracker" target="_blank" rel="noreferrer noopener">
-              Github
-            </a>
-          </div>
+          ${SiteFooter()}
         </main>
 
         <button type="button" class="scrollTopBtn" id="scroll-top-btn" aria-label="Remonter en haut de la page" title="Remonter en haut">
@@ -265,6 +255,16 @@ app.get('/c/:id', async (c) => {
   const region = (item.details['Région'] || item.details['Région :'] || '').trim();
   const salaire = (item.details['Salaire'] || item.details['Salaire estimé'] || '').trim();
   const reason = (item.matchReason || item.aiReason || '').trim();
+
+  const facts: [string, string][] = [
+    ['Administration', admin || 'n/a'],
+    ['Date limite', formatIsoDate(item.depositDeadlineIso)],
+    ['Date du concours', formatIsoDate(item.concoursDateIso)],
+    ['Diplômes', diplomes || 'n/a'],
+    ['Postes', postes || 'n/a'],
+    ['Région', region || 'n/a'],
+  ];
+  if (salaire) facts.push(['Salaire', salaire]);
 
   const descParts: string[] = [];
   if (item.depositDeadlineIso) {
@@ -338,39 +338,15 @@ app.get('/c/:id', async (c) => {
       <body>
         <main class="container">
           <a href="/" class="back">← Tous les concours</a>
-          <h1 class="detailTitle">${item.title}</h1>
+          <h1 class="title detailTitle">${item.title}</h1>
 
           <div class="facts">
-            <div class="detailRow">
-              <div class="detailK">Administration</div>
-              <div class="detailV">${admin || 'n/a'}</div>
-            </div>
-            <div class="detailRow">
-              <div class="detailK">Date limite</div>
-              <div class="detailV">${formatIsoDate(item.depositDeadlineIso)}</div>
-            </div>
-            <div class="detailRow">
-              <div class="detailK">Date du concours</div>
-              <div class="detailV">${formatIsoDate(item.concoursDateIso)}</div>
-            </div>
-            <div class="detailRow">
-              <div class="detailK">Diplômes</div>
-              <div class="detailV">${diplomes || 'n/a'}</div>
-            </div>
-            <div class="detailRow">
-              <div class="detailK">Postes</div>
-              <div class="detailV">${postes || 'n/a'}</div>
-            </div>
-            <div class="detailRow">
-              <div class="detailK">Région</div>
-              <div class="detailV">${region || 'n/a'}</div>
-            </div>
-            ${salaire ? html`
+            ${facts.map(([k, v]) => html`
               <div class="detailRow">
-                <div class="detailK">Salaire</div>
-                <div class="detailV">${salaire}</div>
+                <div class="detailK">${k}</div>
+                <div class="detailV">${v}</div>
               </div>
-            ` : ''}
+            `)}
           </div>
 
           <div class="detailsGrid">
@@ -390,17 +366,7 @@ app.get('/c/:id', async (c) => {
             <a class="linkBtn" href="${item.sourceUrl || item.wadifaUrl}" target="_blank" rel="noreferrer noopener">Lien du concours</a>
           </div>
 
-          <div class="footer">
-            <a href="https://www.emploi-public.ma" target="_blank" rel="noreferrer noopener">
-              source: emploi-public.ma
-            </a>
-            <span class="sep"></span>
-            <a href="/feed.xml">RSS</a>
-            <span class="sep"></span>
-            <a href="https://github.com/mouadlotfi/concours-tracker" target="_blank" rel="noreferrer noopener">
-              Github
-            </a>
-          </div>
+          ${SiteFooter()}
         </main>
       </body>
     </html>

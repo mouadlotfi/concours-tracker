@@ -16,13 +16,11 @@ const details = JSON.stringify({
 });
 
 function makeEnv(rows: Record<string, unknown>[]) {
-  const stmt = {
-    all: async () => ({ results: rows }),
-    bind: () => stmt,
-  };
   return {
     DB: {
-      prepare: () => stmt,
+      prepare: () => ({
+        all: async () => ({ results: rows }),
+      }),
     },
   } as unknown as Env;
 }
@@ -101,6 +99,8 @@ test('1. Home returns 200 with meta description, canonical ending with /, altern
 
   const rssAlternate = $('link[rel="alternate"][type="application/rss+xml"]');
   expect(rssAlternate.length).toBeGreaterThan(0);
+
+  expect($('meta[property="og:image"]').attr('content')).toBe(`${base}/og.png`);
 
   const firstLdJsonText = $('script[type="application/ld+json"]').first().text();
   expect(firstLdJsonText).toBeDefined();
