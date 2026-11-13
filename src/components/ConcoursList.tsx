@@ -1,14 +1,7 @@
 import { html } from 'hono/html';
 import type { MatchedConcours } from '../lib/scraper';
 import { diplomaLevels } from '../lib/diploma-level';
-
-function fmtDate(iso: string | null): string {
-  if (!iso) return 'n/a';
-  const ymd = iso.split('T')[0];
-  const parts = ymd.split('-');
-  if (parts.length !== 3) return iso;
-  return `${parts[2]}-${parts[1]}-${parts[0]}`;
-}
+import { formatIsoDate } from '../lib/date';
 
 function ymd(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -57,14 +50,12 @@ function renderItem(it: MatchedConcours, pinned = false) {
           <h3 class="itemTitle">
             <a
               class="itemTitleLink"
-              href="${it.sourceUrl || it.wadifaUrl}"
-              target="_blank"
-              rel="noreferrer noopener"
+              href="/c/${it.id}"
             >
               ${it.title}
             </a>
           </h3>
-          <span class="pill pillDeadline">Date limite de dépôt: ${fmtDate(it.depositDeadlineIso)}</span>
+          <span class="pill pillDeadline">Date limite de dépôt: ${formatIsoDate(it.depositDeadlineIso)}</span>
         </div>
         <div class="itemMeta">
           <span class="metaGroup">
@@ -73,7 +64,7 @@ function renderItem(it: MatchedConcours, pinned = false) {
               ${it.details['Administration qui recrute'] || it.details['Administration qui recrute :'] || 'n/a'}
             </span>
           </span>
-          ${it.concoursDateIso ? html`<span class="pill">Date du concours: ${fmtDate(it.concoursDateIso)}</span>` : ''}
+          ${it.concoursDateIso ? html`<span class="pill">Date du concours: ${formatIsoDate(it.concoursDateIso)}</span>` : ''}
 
           ${it.aiRelevant === false ? html`
             <span class="pill" style="color: #dc2626; background: rgba(220, 38, 38, 0.1); border-color: rgba(220, 38, 38, 0.2);" title="${it.aiReason || ''}">

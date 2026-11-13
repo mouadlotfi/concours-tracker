@@ -1,7 +1,7 @@
 import { isoToRfc822 } from './date';
 import type { MatchedConcours } from './scraper';
 
-function escapeXml(value: string): string {
+export function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

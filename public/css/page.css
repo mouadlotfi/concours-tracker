@@ -842,3 +842,44 @@
     font-size: 14px;
   }
 }
+
+/* Concours detail page */
+.back {
+  display: inline-block;
+  font-family: 'Departure Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  margin-bottom: 18px;
+}
+
+.back:hover {
+  color: var(--accent-dim);
+}
+
+.facts {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 18px 44px rgba(17, 17, 24, 0.07);
+}
+
+.matchReason {
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(17, 17, 24, 0.84);
+  margin: 20px 0 24px;
+}
+
+.detailTitle {
+  font-family: 'Departure Mono', monospace;
+  font-size: clamp(20px, 4vw, 27px);
+  font-weight: 400;
+  line-height: 1.35;
+  color: #121224;
+  margin: 0 0 18px;
+  letter-spacing: -0.3px;
+}

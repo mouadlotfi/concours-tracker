@@ -41,6 +41,7 @@ test('home puts sorting beside RSS when no concours are pinned', async () => {
   expect($('#sort-limite').length).toBe(1);
   expect($('#sort-concours').length).toBe(1);
   expect($('#concours-container').length).toBe(1);
+  expect($('.itemTitleLink').attr('href')).toBe('/c/0');
 });
 
 test('home keeps sorting below pinned concours', async () => {

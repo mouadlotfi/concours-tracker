@@ -5,9 +5,11 @@ import { z } from 'zod';
 import { configDefaults, getAppBaseUrl, mailEnabled, subscribersEnabled, turnstileEnabled } from './lib/config';
 import type { Env } from './lib/config';
 import { claimNotifications, loadAll, mergeAndPrune } from './lib/concours-store';
-import { scrapeMatchedConcours } from './lib/scraper';
+import { scrapeMatchedConcours, isOpenDeadline } from './lib/scraper';
 import type { MatchedConcours } from './lib/scraper';
-import { buildRss } from './lib/rss';
+import { buildRss, escapeXml } from './lib/rss';
+import { jsonLd, pageHead } from './components/Document';
+import { formatIsoDate, parseDdMmYyyyToIsoUtc } from './lib/date';
 import { ConcoursList, selectPinnedItems, SortBar } from './components/ConcoursList';
 import { SubscribeCard } from './components/SubscribeCard';
 import { emailContactExistsInList, emailListSubscribers, emailRemoveContact, emailUpsertContact } from './lib/subscriptions';
@@ -123,24 +125,36 @@ app.get('/', async (c) => {
   const hasPinned = items.length > 0
     && selectPinnedItems(items.slice(0, configDefaults.maxFeedItems), now).length > 0;
   const sortInHeader = !error && items.length > 0 && !hasPinned;
+  const baseUrl = getAppBaseUrl(c.env);
+
+  if (!error) {
+    c.header('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=3600');
+  }
 
   return c.html(
     html`
     <!DOCTYPE html>
     <html lang="fr">
       <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Concours Développement Informatique</title>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-        <link rel="stylesheet" href="/css/globals.css">
-        <link rel="stylesheet" href="/css/page.css">
+        ${pageHead({
+          title: `Concours informatique Maroc : offres dev web ${now.getUTCFullYear()}`,
+          description: 'Concours publics au Maroc pour développeurs : dates limites, diplômes requis et administrations qui recrutent. Mis à jour toutes les 5 heures.',
+          path: '/',
+          baseUrl,
+        })}
+        ${jsonLd({
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: 'Concours Tracker',
+          url: baseUrl.replace(/\/+$/, '') + '/',
+          inLanguage: 'fr',
+        })}
       </head>
       <body>
         <main class="container">
           <header class="hero">
             <h1 class="title">
-              Concours Développement Informatique
+              Concours informatique au Maroc
               <img class="titleFlag" src="/morocco-flag.svg" alt="Drapeau du Maroc" width="900" height="600">
             </h1>
           </header>
@@ -220,6 +234,180 @@ app.get('/', async (c) => {
   );
 });
 
+// Detail Page
+/** Trim at a word boundary so titles and descriptions never end mid-word. */
+function truncate(value: string, max: number): string {
+  const clean = value.replace(/\s+/g, ' ').trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${(lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`;
+}
+
+app.get('/c/:id', async (c) => {
+  const id = c.req.param('id');
+  if (!/^\d+$/.test(id)) {
+    return c.notFound();
+  }
+
+  const all = await loadAll(c.env);
+  const item = all.find((i) => i.id === id);
+  if (!item || item.aiRelevant !== true || !isOpenDeadline(item.depositDeadlineIso)) {
+    return c.notFound();
+  }
+
+  c.header('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=3600');
+
+  const baseUrl = getAppBaseUrl(c.env);
+  const admin = (item.details['Administration qui recrute'] || item.details['Administration qui recrute :'] || '').trim();
+  const diplomes = (item.details['Diplômes'] || item.details['Diplômes requis'] || '').trim();
+  const postes = (item.details['Postes'] || item.details['Nombre de postes'] || '').trim();
+  const region = (item.details['Région'] || item.details['Région :'] || '').trim();
+  const salaire = (item.details['Salaire'] || item.details['Salaire estimé'] || '').trim();
+  const reason = (item.matchReason || item.aiReason || '').trim();
+
+  const descParts: string[] = [];
+  if (item.depositDeadlineIso) {
+    descParts.push(`Date limite : ${formatIsoDate(item.depositDeadlineIso)}.`);
+  }
+  if (admin) {
+    descParts.push(admin.endsWith('.') ? admin : `${admin}.`);
+  }
+  if (diplomes) {
+    descParts.push(diplomes.endsWith('.') ? diplomes : `${diplomes}.`);
+  }
+  descParts.push('Détails et lien officiel du concours.');
+
+  const description = truncate(descParts.join(' '), 158);
+
+  const published = item.details['Date de publication'];
+  const datePosted = published ? parseDdMmYyyyToIsoUtc(published) : null;
+  const deadline = item.depositDeadlineIso;
+  const detailCount = Object.values(item.details).filter(Boolean).length;
+
+  let jobPostingLd: unknown = '';
+  if (datePosted && deadline && detailCount >= 2) {
+    const desc = Object.entries(item.details)
+      .filter(([k, v]) => Boolean(k && v))
+      .slice(0, 20)
+      .map(([k, v]) => `<p><strong>${escapeXml(k)}</strong>: ${escapeXml(v)}</p>`)
+      .join('');
+
+    jobPostingLd = jsonLd({
+      '@context': 'https://schema.org',
+      '@type': 'JobPosting',
+      title: item.title,
+      description: desc,
+      datePosted: datePosted.slice(0, 10),
+      validThrough: deadline,
+      hiringOrganization: {
+        '@type': 'Organization',
+        name: admin || 'Administration publique marocaine',
+      },
+      jobLocation: {
+        '@type': 'Place',
+        address: {
+          '@type': 'PostalAddress',
+          addressCountry: 'MA',
+          ...(region ? { addressRegion: region } : {}),
+        },
+      },
+      identifier: {
+        '@type': 'PropertyValue',
+        name: 'concours-tracker',
+        value: item.id,
+      },
+    });
+  }
+
+  const detailEntries = Object.entries(item.details || {}).filter(([k, v]) => Boolean(k && v));
+
+  return c.html(
+    html`
+    <!DOCTYPE html>
+    <html lang="fr">
+      <head>
+        ${pageHead({
+          title: truncate(item.title, 65),
+          description,
+          path: '/c/' + item.id,
+          baseUrl,
+        })}
+        ${jobPostingLd || ''}
+      </head>
+      <body>
+        <main class="container">
+          <a href="/" class="back">← Tous les concours</a>
+          <h1 class="detailTitle">${item.title}</h1>
+
+          <div class="facts">
+            <div class="detailRow">
+              <div class="detailK">Administration</div>
+              <div class="detailV">${admin || 'n/a'}</div>
+            </div>
+            <div class="detailRow">
+              <div class="detailK">Date limite</div>
+              <div class="detailV">${formatIsoDate(item.depositDeadlineIso)}</div>
+            </div>
+            <div class="detailRow">
+              <div class="detailK">Date du concours</div>
+              <div class="detailV">${formatIsoDate(item.concoursDateIso)}</div>
+            </div>
+            <div class="detailRow">
+              <div class="detailK">Diplômes</div>
+              <div class="detailV">${diplomes || 'n/a'}</div>
+            </div>
+            <div class="detailRow">
+              <div class="detailK">Postes</div>
+              <div class="detailV">${postes || 'n/a'}</div>
+            </div>
+            <div class="detailRow">
+              <div class="detailK">Région</div>
+              <div class="detailV">${region || 'n/a'}</div>
+            </div>
+            ${salaire ? html`
+              <div class="detailRow">
+                <div class="detailK">Salaire</div>
+                <div class="detailV">${salaire}</div>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="detailsGrid">
+            ${detailEntries.map(([k, v]) => html`
+              <div class="detailRow">
+                <div class="detailK">${k}</div>
+                <div class="detailV">${v}</div>
+              </div>
+            `)}
+          </div>
+
+          ${reason ? html`
+            <p class="matchReason"><strong>Pourquoi ce concours :</strong> ${reason}</p>
+          ` : ''}
+
+          <div class="itemLinks">
+            <a class="linkBtn" href="${item.sourceUrl || item.wadifaUrl}" target="_blank" rel="noreferrer noopener">Lien du concours</a>
+          </div>
+
+          <div class="footer">
+            <a href="https://www.emploi-public.ma" target="_blank" rel="noreferrer noopener">
+              source: emploi-public.ma
+            </a>
+            <span class="sep"></span>
+            <a href="/feed.xml">RSS</a>
+            <span class="sep"></span>
+            <a href="https://github.com/mouadlotfi/concours-tracker" target="_blank" rel="noreferrer noopener">
+              Github
+            </a>
+          </div>
+        </main>
+      </body>
+    </html>
+    `
+  );
+});
+
 // RSS Feed
 app.get('/feed.xml', async (c) => {
   const all = await loadAll(c.env);
@@ -229,6 +417,30 @@ app.get('/feed.xml', async (c) => {
   c.header('Content-Type', 'application/xml; charset=utf-8');
   c.header('Cache-Control', `public, s-maxage=${configDefaults.cacheSeconds}, stale-while-revalidate=86400`);
   
+  return c.body(xml);
+});
+
+// Sitemap
+app.get('/sitemap.xml', async (c) => {
+  const base = getAppBaseUrl(c.env).replace(/\/+$/, '');
+  const all = await loadAll(c.env);
+  const relevant = all.filter((it) => it.aiRelevant === true && isOpenDeadline(it.depositDeadlineIso));
+
+  const urlEntries = [
+    `<url><loc>${escapeXml(`${base}/`)}</loc></url>`,
+    ...relevant.map((item) => {
+      const lastmod = typeof item.classifiedAt === 'string' && item.classifiedAt
+        ? `<lastmod>${escapeXml(item.classifiedAt.slice(0, 10))}</lastmod>`
+        : '';
+      return `<url><loc>${escapeXml(`${base}/c/${item.id}`)}</loc>${lastmod}</url>`;
+    }),
+  ].join('\n');
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urlEntries}\n</urlset>`;
+
+  c.header('Content-Type', 'application/xml; charset=utf-8');
+  c.header('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+
   return c.body(xml);
 });
 
@@ -426,6 +638,7 @@ app.post('/api/unsubscribe', async (c) => {
 });
 
 app.get('/unsubscribe', (c) => {
+  c.header('X-Robots-Tag', 'noindex');
   return c.html(`
     <!DOCTYPE html>
     <html lang="fr">
@@ -580,6 +793,7 @@ app.get('/confirm', (c) => {
           </button>`
     : '';
 
+  c.header('X-Robots-Tag', 'noindex');
   return c.html(`
     <!DOCTYPE html>
     <html lang="fr">

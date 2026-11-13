@@ -1,3 +1,10 @@
+/** Format an ISO timestamp as French `dd-mm-yyyy`; `n/a` when absent. */
+export function formatIsoDate(iso: string | null | undefined): string {
+  if (!iso) return 'n/a';
+  const parts = iso.slice(0, 10).split('-');
+  return parts.length === 3 ? parts.reverse().join('-') : iso;
+}
+
 export function isoToRfc822(iso: string): string {
   const d = new Date(iso);
   // If invalid, fall back to now.

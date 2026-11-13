@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /confirm
+Disallow: /unsubscribe
+Sitemap: https://concours.mouadlotfi.com/sitemap.xml
