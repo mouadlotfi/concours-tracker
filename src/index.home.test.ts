@@ -43,18 +43,22 @@ test('home puts sorting beside RSS when no concours are pinned', async () => {
   expect($('#concours-container').length).toBe(1);
 });
 
-test('home keeps sorting below pinned concours', async () => {
+test('home keeps the toolbar above pinned concours', async () => {
   const $ = await home([nextWeekdayDeadline(), null]);
   expect($('.pinnedHeading').text()).toBe('Épinglés');
   expect($('.sectionHead .sortBar').length).toBe(0);
-  expect($('.pinnedBlock + .sortBar').length).toBe(1);
+  expect($('.pinnedBlock').prevAll('.sortBar').length).toBe(1);
   expect($('.sortBar').length).toBe(1);
 });
 
-test('home omits sorting for empty and pinned-only lists', async () => {
-  for (const deadlines of [[], [nextWeekdayDeadline()]]) {
+test('home omits the toolbar for an empty list but keeps it for pinned-only lists', async () => {
+  const cases: Array<[(string | null)[], number]> = [
+    [[], 0],
+    [[nextWeekdayDeadline()], 1],
+  ];
+  for (const [deadlines, toolbars] of cases) {
     const $ = await home(deadlines);
-    expect($('.sortBar').length).toBe(0);
+    expect($('.sortBar').length).toBe(toolbars);
     expect($('.sectionHead a[href="/feed.xml"]').length).toBe(1);
   }
 });

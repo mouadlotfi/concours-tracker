@@ -1,5 +1,6 @@
 import { html } from 'hono/html';
 import type { MatchedConcours } from '../lib/scraper';
+import { diplomaLevels } from '../lib/diploma-level';
 
 function fmtDate(iso: string | null): string {
   if (!iso) return 'n/a';
@@ -43,11 +44,13 @@ export function selectPinnedItems(items: MatchedConcours[], now: Date): MatchedC
 }
 
 function renderItem(it: MatchedConcours, pinned = false) {
+  const levels = diplomaLevels(it.details['Diplômes'] || it.details['Diplômes requis']);
   return html`
     <article
       class="item${pinned ? ' itemPinned' : ''}"
       data-limite="${it.depositDeadlineIso || ''}"
       data-concours="${it.concoursDateIso || ''}"
+      data-niveaux="${levels.join(' ')}"
     >
       <div class="itemMain">
         <div class="itemTitleRow">
@@ -126,14 +129,50 @@ export function compareConcoursDates(
 
 export const SortBar = () => html`
   <div class="sortBar">
-    <span class="sortLabel">Trier par</span>
-    <button type="button" class="sortBtn sortBtnActive" id="sort-limite" onclick="toggleSort('limite')">
-      Date limite de dépôt<span class="sortArrow" id="sort-limite-arrow"> ↑</span>
-    </button>
-    <button type="button" class="sortBtn" id="sort-concours" onclick="toggleSort('concours')">
-      Date du concours<span class="sortArrow" id="sort-concours-arrow"></span>
-    </button>
+    <div class="sortGroup" role="group" aria-label="Trier par">
+      <span class="sortLabel">Trier par</span>
+      <button type="button" class="sortBtn sortBtnActive" id="sort-limite" onclick="toggleSort('limite')" aria-pressed="true">
+        Date limite<span class="sortArrow" id="sort-limite-arrow"> ↑</span>
+      </button>
+      <button type="button" class="sortBtn" id="sort-concours" onclick="toggleSort('concours')" aria-pressed="false">
+        Date concours<span class="sortArrow" id="sort-concours-arrow"></span>
+      </button>
+    </div>
+
+    <div class="sortGroup" role="group" aria-label="Filtrer par niveau de diplôme">
+      <span class="sortLabel">Diplôme</span>
+      <button type="button" class="sortBtn sortBtnActive" data-level="all" aria-pressed="true">Tous</button>
+      <button type="button" class="sortBtn" data-level="2" aria-pressed="false">Bac+2</button>
+      <button type="button" class="sortBtn" data-level="3" aria-pressed="false">Bac+3</button>
+      <button type="button" class="sortBtn" data-level="5" aria-pressed="false">Bac+5</button>
+    </div>
   </div>
+
+  <script>
+  (function() {
+    var buttons = document.querySelectorAll('[data-level]');
+
+    function apply(level) {
+      document.querySelectorAll('.item').forEach(function(item) {
+        item.hidden = level !== 'all' && item.dataset.niveaux.split(' ').indexOf(level) === -1;
+      });
+
+      buttons.forEach(function(button) {
+        var active = button.getAttribute('data-level') === level;
+        button.classList.toggle('sortBtnActive', active);
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      });
+
+      document.getElementById('filterEmpty').hidden = !!document.querySelector('.item:not([hidden])');
+    }
+
+    buttons.forEach(function(button) {
+      button.addEventListener('click', function() {
+        apply(button.getAttribute('data-level'));
+      });
+    });
+  })();
+  </script>
 `;
 
 export const ConcoursList = ({
@@ -153,6 +192,8 @@ export const ConcoursList = ({
   const regularItems = displayItems.filter((item) => !pinnedIds.has(item.id));
 
   return html`
+    ${showSortBar && displayItems.length ? SortBar() : ''}
+
     ${pinnedItems.length ? html`
       <div class="pinnedBlock">
         <div class="list">${pinnedItems.map((item) => renderItem(item, true))}</div>
@@ -160,8 +201,6 @@ export const ConcoursList = ({
     ` : ''}
 
     ${regularItems.length ? html`
-      ${showSortBar ? SortBar() : ''}
-
       <div class="list" id="concours-container">
         ${regularItems.map((it) => renderItem(it))}
       </div>
@@ -198,6 +237,9 @@ export const ConcoursList = ({
           arrowLimite.textContent = '';
         }
 
+        btnLimite.setAttribute('aria-pressed', String(currentSort === 'limite'));
+        btnConcours.setAttribute('aria-pressed', String(currentSort === 'concours'));
+
         items.sort((a, b) => {
           const da = a.dataset[key] || '';
           const db = b.dataset[key] || '';
@@ -211,5 +253,7 @@ export const ConcoursList = ({
       }
       </script>
     ` : ''}
+
+    <div class="empty" id="filterEmpty" role="status" hidden>Aucun concours pour ce niveau.</div>
   `;
 };
