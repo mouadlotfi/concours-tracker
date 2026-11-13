@@ -302,15 +302,14 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
     }
     const $ = cheerio.load(html);
 
-    $("a[href*='/fr/']").each((_, el) => {
-      const href = ($(el).attr('href') || '').trim();
+    // The title link only wraps the title, so the whole card carries the fields.
+    $('.job-listing').each((_, el) => {
+      const card = $(el);
+      const href = (card.find(".job-listing-title a[href*='/fr/']").attr('href')
+        || card.find("a[href*='/fr/']").attr('href')
+        || '').trim();
       const id = href.match(/\/fr\/(\d{4,6})\//)?.[1];
       if (!id) return;
-
-      // Current markup nests the title link inside the card; older markup wrapped the whole card.
-      // Anything else (site-wide promo banner) links the same id with no card around it.
-      const card = $(el).closest('.job-listing');
-      if (!card.length) return;
 
       const wadifaUrl = absUrl(`/fr/${id}/`);
       if (seen.has(wadifaUrl)) return;
