@@ -303,7 +303,6 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
     }
     const $ = cheerio.load(html);
 
-    let cardsOnPage = 0;
     $("a[href*='/fr/']").each((_, el) => {
       const href = ($(el).attr('href') || '').trim();
       const id = href.match(/\/fr\/(\d{4,6})\//)?.[1];
@@ -325,10 +324,7 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
         wadifaUrl,
         ...parsed,
       });
-      cardsOnPage++;
     });
-
-    if (page === 1 && cardsOnPage < 60) console.warn(JSON.stringify({ event: 'list-page-size-ignored', cardsOnPage, expected: configDefaults.listPageSize }));
   }
 
   return items;
@@ -338,8 +334,8 @@ export function normalizeDetailValue(label: string, value: string): string {
   // "Dépôt papier du dossier de candidature — préparer le dossier →" -> "Papier"
   // (no \b: "é" is not a \w character, so a word boundary never forms before "électronique")
   if (/^(?:Type|Mode) de dépôt\s*:?$/i.test(label.trim())) {
-    const channel = value.match(/papier|électronique|electronique/i)?.[0];
-    if (channel) return channel.normalize('NFC').charAt(0).toUpperCase() + channel.normalize('NFC').slice(1).toLowerCase();
+    const channel = value.match(/papier|électronique/i)?.[0];
+    if (channel) return channel.charAt(0).toUpperCase() + channel.slice(1).toLowerCase();
   }
   if (!/^Salaire\s*:?$/i.test(label.trim())) return value;
   return value.replace(/\s*—\s*Voir le salaire de ce grade\s*→\s*$/, '').trim();

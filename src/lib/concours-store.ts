@@ -1,6 +1,6 @@
 import type { Env } from './config';
 import type { MatchedConcours } from './scraper';
-import { isOpenDeadline, normalizeDetailValue, normalizeDetails } from './scraper';
+import { isOpenDeadline, normalizeDetails } from './scraper';
 import { endOfDayIsoUtc, parseDdMmYyyyToIsoUtc } from './date';
 
 export type MergeResult = { all: MatchedConcours[]; newItems: MatchedConcours[] };
