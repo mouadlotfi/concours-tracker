@@ -38,16 +38,24 @@ export type RuleDecision =
   | { kind: 'ambiguous'; reason: string };
 
 const STRONG_DEVELOPMENT_PATTERNS: Array<{ label: string; pattern: RegExp }> = [
-  { label: 'développement informatique', pattern: /\bdeveloppements?\s+informatique\b/ },
-  { label: 'développement web', pattern: /\bdeveloppements?\s+web\b/ },
-  { label: 'développement logiciel', pattern: /\bdeveloppements?\s+logiciels?\b/ },
-  { label: 'développement de systèmes informatiques', pattern: /\bdeveloppements?\s+de\s+systemes?\s+informatiques?\b/ },
+  { label: 'développement informatique', pattern: /\bdevelop{1,2}e?ments?\s+informatique\b/ },
+  { label: 'développement web', pattern: /\bdevelop{1,2}e?ments?\s+web\b/ },
+  { label: 'développement logiciel', pattern: /\bdevelop{1,2}e?ments?\s+logiciels?\b/ },
+  { label: 'développement digital', pattern: /\bdevelop{1,2}e?ments?\s+digital\b/ },
+  {
+    label: "développement d'applications",
+    pattern: /\bdevelop{1,2}e?ments?\s+d['\u2019]\s?applications?\b/,
+  },
+  { label: 'développement mobile', pattern: /\bdevelop{1,2}e?ments?\s+mobiles?\b/ },
+  { label: 'intégrateur', pattern: /\bintegrateu(?:r|se|rs|ses)\b/ },
+  { label: 'intégration web', pattern: /\bintegration\s+web\b/ },
+  { label: 'développement de systèmes informatiques', pattern: /\bdevelop{1,2}e?ments?\s+de\s+systemes?\s+informatiques?\b/ },
   { label: 'génie logiciel', pattern: /\bgenie\s+logiciel\b/ },
   {
     label: 'techniques de développement',
-    pattern: /\btechniques?\s+(?:de|du)\s+developpement(?:\s+(?:informatique|web|logiciel))?\b/,
+    pattern: /\btechniques?\s+(?:de|du)\s+develop{1,2}e?ment(?:\s+(?:informatique|web|logiciel))?\b/,
   },
-  { label: 'développeur', pattern: /\bdeveloppeu(?:r|se|rs|ses)\b/ },
+  { label: 'développeur', pattern: /\bdevelop{1,2}eu(?:r|se|rs|ses)\b/ },
   { label: 'programmation web/logicielle', pattern: /\bprogrammation\s+(?:web|logicielle?)\b/ },
   { label: 'frontend/backend/full-stack', pattern: /\b(?:front[ -]?end|back[ -]?end|full[ -]?stack)\b/ },
   { label: 'تطوير البرمجيات', pattern: /(?:تطوير\s+(?:ال)?برمجيات|هندسة\s+(?:ال)?برمجيات)/ },

@@ -66,6 +66,14 @@ describe(`classifier ${CLASSIFIER_VERSION}`, () => {
     expect(result.kind).toBe('accept');
   });
 
+  test('accepts a misspelled "développment informatique" specialty', () => {
+    const result = classifyByRules(candidate({
+      details: { 'Spécialités requises': 'technique de développment informatique' },
+    }));
+
+    expect(result.kind).toBe('accept');
+  });
+
   test('accepts "développement de systèmes informatiques" specialties', () => {
     const result = classifyByRules(candidate({
       details: {
@@ -76,6 +84,65 @@ describe(`classifier ${CLASSIFIER_VERSION}`, () => {
 
     expect(result.kind).toBe('accept');
     expect(result.reason).toContain('développement de systèmes informatiques');
+  });
+
+  test('accepts "développement digital" specialties', () => {
+    const result = classifyByRules(candidate({
+      details: { 'Spécialités requises': 'développement digital' },
+    }));
+
+    expect(result.kind).toBe('accept');
+    expect(result.reason).toContain('développement digital');
+  });
+
+  test("accepts development of applications with either apostrophe", () => {
+    const straight = classifyByRules(candidate({
+      title: "Technicien en développement d'applications web",
+    }));
+    const curly = classifyByRules(candidate({
+      details: { 'Spécialités requises': 'développement d’ applications mobiles' },
+    }));
+
+    expect(straight.kind).toBe('accept');
+    expect(curly.kind).toBe('accept');
+  });
+
+  test('accepts "développement mobile" specialties', () => {
+    const result = classifyByRules(candidate({
+      details: { 'Spécialités requises': 'développement mobile' },
+    }));
+
+    expect(result.kind).toBe('accept');
+    expect(result.reason).toContain('développement mobile');
+  });
+
+  test('accepts an "intégrateur" role', () => {
+    const result = classifyByRules(candidate({
+      details: { 'Spécialités requises': 'intégrateur web' },
+    }));
+
+    expect(result.kind).toBe('accept');
+    expect(result.reason).toContain('intégrateur');
+  });
+
+  test('accepts "intégration web" specialties', () => {
+    const result = classifyByRules(candidate({
+      details: { 'Spécialités requises': 'intégration web' },
+    }));
+
+    expect(result.kind).toBe('accept');
+    expect(result.reason).toContain('intégration web');
+  });
+
+  test('does not treat other "développement" domains as software development', () => {
+    for (const label of ['développement durable', 'développement rural', 'développement personnel']) {
+      const result = classifyByRules(candidate({
+        title: `Chargé du ${label}`,
+        details: { 'Spécialités requises': label },
+      }));
+
+      expect(result.kind).toBe('reject');
+    }
   });
 
   test('holds generic informatique for official-document inspection', () => {
