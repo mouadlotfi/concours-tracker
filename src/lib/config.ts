@@ -3,8 +3,11 @@ export const configDefaults = {
   baseUrl: 'https://www.wadifa-info.com',
   listPath: '/fr/concours-emplois-publics-maroc',
   listSortBy: 4,
+  // The listing accepts ?pageSize=100, which returns ~100 cards per page instead of 11.
+  listPageSize: 100,
   userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36',
-  maxPages: 5,
+  // With pageSize=100, 6 pages cover ~600 deadline-sorted listings, well beyond the ~358 open ones.
+  maxPages: 6,
   maxFeedItems: 30,
   cacheSeconds: 3600,
   appBaseUrl: 'https://concours.mouadlotfi.com',

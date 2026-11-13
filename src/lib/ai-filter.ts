@@ -8,6 +8,7 @@ import {
   isAdmissibleAiEvidence,
 } from './classification';
 import type { MatchedConcours } from './scraper';
+import { takeSubrequest } from './subrequest-budget';
 
 const AiDecisionSchema = z.object({
   id: z.string().min(1),
@@ -103,6 +104,11 @@ ${JSON.stringify(inputs, null, 2)}`;
           },
         })),
       ];
+
+  if (!takeSubrequest()) {
+    console.warn(JSON.stringify({ event: 'ai-filter-budget-exhausted', skipped: items.length }));
+    return items;
+  }
 
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {

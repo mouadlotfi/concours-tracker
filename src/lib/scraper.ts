@@ -8,6 +8,7 @@ import { endOfDayIsoUtc, parseDdMmYyyyToIsoUtc } from './date';
 import { normalizeText } from './normalize';
 import { filterWithAI } from './ai-filter';
 import { timer } from './log';
+import { SUBREQUEST_LIMIT, resetSubrequestBudget, subrequestsUsed, takeSubrequest } from './subrequest-budget';
 import {
   CLASSIFIER_VERSION,
   classificationContentHash,
@@ -133,6 +134,7 @@ async function readBoundedBytes(res: Response, maxBytes: number): Promise<Uint8A
 }
 
 async function fetchResource(url: string, accept: string): Promise<Response> {
+  if (!takeSubrequest()) throw new Error(`subrequest budget exhausted (${SUBREQUEST_LIMIT}) before ${url}`);
   const res = await fetch(url, {
     headers: {
       'User-Agent': configDefaults.userAgent,
@@ -259,7 +261,9 @@ export function parseListCard(card: cheerio.Cheerio<AnyNode>): Omit<WadifaListIt
   const titleNode = card.find('.job-listing-title').clone();
   titleNode.find('.wf-fresh-new').remove();
 
-  const deadlineText = card.find('.wf-datechip-orange').attr('title')?.match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
+  // The chip is orange while the deadline is far and red once it closes in; match on its label instead.
+  // `class*=` also covers the older markup where only `wf-datechip-orange` was set.
+  const deadlineText = card.find('[class*="wf-datechip"][title*="Date limite"]').attr('title')?.match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
     || parsed.deadlineText;
   const concoursDateText = card.find('.wf-datechip-green').text().match(/(\d{2}\/\d{2}\/\d{4})/)?.[1]
     || parsed.concoursDateText;
@@ -268,7 +272,8 @@ export function parseListCard(card: cheerio.Cheerio<AnyNode>): Omit<WadifaListIt
     ...parsed,
     title: titleNode.text().replace(/\s+/g, ' ').trim() || parsed.title,
     administration: (card.find('.wf-emp-logo').attr('alt') || '').trim() || parsed.administration,
-    posts: card.find('.icon-material-outline-group').parent().text().replace(/\s+/g, ' ').trim() || parsed.posts,
+    posts: card.find('li').filter((_, el) => /postes?/i.test(card.find(el).text())).first().text().replace(/\s+/g, ' ').trim()
+      || parsed.posts,
     diplomas: card.find('.diplomas').map((_, el) => card.find(el).text().trim()).get().filter(Boolean).join(' ') || parsed.diplomas,
     specialties: card.find('.speciliteList').map((_, el) => card.find(el).text().trim()).get().filter(Boolean).join(' ') || parsed.specialties,
     deadlineText,
@@ -286,34 +291,79 @@ export async function listWadifaItems(): Promise<WadifaListItem[]> {
     const u = new URL(absUrl(configDefaults.listPath));
     if (page > 1) u.searchParams.set('pageNumber', String(page));
     if (configDefaults.listSortBy) u.searchParams.set('sortBy', String(configDefaults.listSortBy));
+    u.searchParams.set('pageSize', String(configDefaults.listPageSize));
 
-    const html = await fetchHtml(u.toString());
+    let html: string;
+    try {
+      html = await fetchHtml(u.toString());
+    } catch (error) {
+      // The budget guard throws once subrequests are spent; stop paging instead of losing the scrape.
+      console.warn(`[wadifa] list page ${page} fetch failed, stopping pagination:`, error instanceof Error ? error.message : error);
+      break;
+    }
     const $ = cheerio.load(html);
 
+    let cardsOnPage = 0;
     $("a[href*='/fr/']").each((_, el) => {
       const href = ($(el).attr('href') || '').trim();
       const id = href.match(/\/fr\/(\d{4,6})\//)?.[1];
       if (!id) return;
+
+      // Current markup nests the title link inside the card; older markup wrapped the whole card.
+      // Anything else (site-wide promo banner) links the same id with no card around it.
+      const card = $(el).closest('.job-listing');
+      if (!card.length) return;
+
       const wadifaUrl = absUrl(`/fr/${id}/`);
       if (seen.has(wadifaUrl)) return;
       seen.add(wadifaUrl);
 
-      const parsed = parseListCard($(el));
+      const parsed = parseListCard(card);
 
       items.push({
         id,
         wadifaUrl,
         ...parsed,
       });
+      cardsOnPage++;
     });
+
+    if (page === 1 && cardsOnPage < 60) console.warn(JSON.stringify({ event: 'list-page-size-ignored', cardsOnPage, expected: configDefaults.listPageSize }));
   }
 
   return items;
 }
 
 export function normalizeDetailValue(label: string, value: string): string {
+  // "Dépôt papier du dossier de candidature — préparer le dossier →" -> "Papier"
+  // (no \b: "é" is not a \w character, so a word boundary never forms before "électronique")
+  if (/^(?:Type|Mode) de dépôt\s*:?$/i.test(label.trim())) {
+    const channel = value.match(/papier|électronique|electronique/i)?.[0];
+    if (channel) return channel.normalize('NFC').charAt(0).toUpperCase() + channel.normalize('NFC').slice(1).toLowerCase();
+  }
   if (!/^Salaire\s*:?$/i.test(label.trim())) return value;
   return value.replace(/\s*—\s*Voir le salaire de ce grade\s*→\s*$/, '').trim();
+}
+
+// The card and the detail page label the same data differently; keep one row per fact.
+// `null` hides labels that duplicate each other or add nothing for readers.
+const DETAIL_LABELS: Record<string, string | null> = {
+  'Nombre de postes': 'Postes',
+  'Diplômes requis': 'Diplômes',
+  'Salaire estimé': 'Salaire',
+  'Type de dépôt': 'Dépôt',
+  'Mode de dépôt': null,
+};
+
+export function normalizeDetails(details: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(details)
+    .filter(([label, value]) => DETAIL_LABELS[label] !== null && value.trim())
+    .map(([label, value]) => [
+      DETAIL_LABELS[label] || label,
+      normalizeDetailValue(label, value.trim()),
+    ])
+    // Wadifa writes "Aucun poste" when the count is unpublished; showing it reads as zero openings.
+    .filter(([label, value]) => !(label === 'Postes' && /^aucun\b/i.test(value))));
 }
 
 export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail> {
@@ -321,6 +371,7 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
   const $ = cheerio.load(html);
 
   const title = decodeEntities($('h1').first().text().replace(/\s+/g, ' ').trim());
+  // Wadifa renders "… de 0 <grade>" when the post count is unknown; the card title is better.
   const details: Record<string, string> = {};
 
   $('#InfosJob .job-overview-inner li').each((_, li) => {
@@ -328,7 +379,7 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
     if (!label) return;
     const value = decodeEntities(
       $(li)
-        .find('h2,h5,h4')
+        .find('h2,h5,h4,.wf-ov')
         .first()
         .text()
         .replace(/\s+/g, ' ')
@@ -336,6 +387,19 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
     );
     if (!value) return;
     details[label] = normalizeDetailValue(label, value);
+  });
+
+  // Current markup lists the dates in a summary table above the overview list.
+  $('.wf-dates-t tr').each((_, tr) => {
+    const label = decodeEntities($(tr).find('th').first().text().replace(/\s+/g, ' ').trim());
+    if (!label) return;
+    const value = decodeEntities(
+      $(tr).find('td time, td strong').first().text().replace(/\s+/g, ' ').trim()
+        || $(tr).find('td').first().text().replace(/\s+/g, ' ').trim()
+    );
+    if (!value) return;
+    const key = /^Date limite de candidature$/i.test(label) ? 'Date limite de dépôt des candidatures' : label;
+    details[key] = normalizeDetailValue(key, value);
   });
 
   const sourceHref = ($('a#UrlJobEmploi').attr('href') || '').trim();
@@ -348,7 +412,7 @@ export async function fetchWadifaDetail(wadifaUrl: string): Promise<WadifaDetail
 
   return {
     wadifaUrl,
-    title: title || null,
+    title: /\bde\s+0\s+/i.test(title) ? null : title || null,
     details,
     sourceUrl,
     depositDeadlineIso,
@@ -369,6 +433,7 @@ export async function scrapeMatchedConcours(
   env: Env,
   existingClassifications?: Map<string, StoredClassification>
 ): Promise<MatchedConcours[]> {
+  resetSubrequestBudget();
   const t = timer();
 
   const list = await listWadifaItems();
@@ -452,7 +517,7 @@ export async function scrapeMatchedConcours(
   let sourceContextFetches = 0;
   const detailedIds = new Set<string>();
   for (const item of ambiguous) {
-    if (detailFetches >= 10) break;
+    if (detailFetches >= 8) break;
     detailFetches++;
     try {
       const detail = await fetchWadifaDetail(item.wadifaUrl);
@@ -463,7 +528,8 @@ export async function scrapeMatchedConcours(
       if (detail.depositDeadlineIso && !item.depositDeadlineIso) item.depositDeadlineIso = detail.depositDeadlineIso;
       if (detail.concoursDateIso && !item.concoursDateIso) item.concoursDateIso = detail.concoursDateIso;
 
-      if (detail.sourceUrl && sourceContextFetches < 10) {
+      // Source/PDF context is only consumed by the AI filter; skip those fetches when it is disabled.
+      if (detail.sourceUrl && env.OPENROUTER_API_KEY && sourceContextFetches < 3) {
         sourceContextFetches++;
         try {
           const sourceContext = await fetchSourceContext(detail.sourceUrl);
@@ -512,12 +578,15 @@ export async function scrapeMatchedConcours(
   const combined = out.map((item) => classifiedById.get(item.id) || item);
 
   // Only fetch details for listings that either rules or AI deemed relevant.
-  // This drastically reduces HTTP subrequests and avoids Cloudflare 50 subrequest limit
+  // This drastically reduces HTTP subrequests and avoids Cloudflare 50 subrequest limit.
+  // These listings are the ones the site shows, so they get their own small budget
+  // instead of competing with the ambiguous-listing enrichment above.
   const finalOut: MatchedConcours[] = [];
+  let relevantDetailFetches = 0;
   for (const item of combined) {
     if (item.aiRelevant === true && !detailedIds.has(item.id)) {
-      if (detailFetches < 10) {
-        detailFetches++;
+      if (relevantDetailFetches < 20) {
+        relevantDetailFetches++;
         try {
           const detail = await fetchWadifaDetail(item.wadifaUrl);
           item.sourceUrl = detail.sourceUrl;
@@ -535,6 +604,6 @@ export async function scrapeMatchedConcours(
     finalOut.push(item);
   }
 
-  console.log(`[wadifa] Returning ${finalOut.length} total items (${detailFetches} detail pages fetched) in ${t.mark()}ms (total ${t.total()}ms)`);
+  console.log(`[wadifa] Returning ${finalOut.length} total items (${detailFetches + relevantDetailFetches} detail pages fetched) in ${t.mark()}ms (total ${t.total()}ms) / ${subrequestsUsed()} subrequests`);
   return finalOut;
 }
