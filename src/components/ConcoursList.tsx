@@ -50,7 +50,9 @@ function renderItem(it: MatchedConcours, pinned = false) {
           <h3 class="itemTitle">
             <a
               class="itemTitleLink"
-              href="/c/${it.id}"
+              href="${it.sourceUrl || it.wadifaUrl}"
+              target="_blank"
+              rel="noreferrer noopener"
             >
               ${it.title}
             </a>

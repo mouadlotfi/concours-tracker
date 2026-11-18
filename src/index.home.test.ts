@@ -12,6 +12,7 @@ async function home(deadlines: (string | null)[]) {
             id: String(index),
             title: `Concours ${index}`,
             wadifaUrl: `https://example.com/${index}`,
+            sourceUrl: index === 0 ? 'https://www.emploi-public.ma/fr/concours/details/0' : null,
             depositDeadlineIso,
             aiRelevant: 1,
           })),
@@ -33,7 +34,7 @@ function nextWeekdayDeadline() {
 }
 
 test('home puts sorting beside RSS when no concours are pinned', async () => {
-  const $ = await home([null]);
+  const $ = await home([null, null]);
   expect($('.pinnedBlock').length).toBe(0);
   expect($('.sectionHeadSortable .sortBar').length).toBe(1);
   expect($('.sectionHeadSortable a[href="/feed.xml"]').length).toBe(1);
@@ -41,7 +42,8 @@ test('home puts sorting beside RSS when no concours are pinned', async () => {
   expect($('#sort-limite').length).toBe(1);
   expect($('#sort-concours').length).toBe(1);
   expect($('#concours-container').length).toBe(1);
-  expect($('.itemTitleLink').attr('href')).toBe('/c/0');
+  expect($('.itemTitleLink').eq(0).attr('href')).toBe('https://www.emploi-public.ma/fr/concours/details/0');
+  expect($('.itemTitleLink').eq(1).attr('href')).toBe('https://example.com/1');
 });
 
 test('home keeps sorting below pinned concours', async () => {
